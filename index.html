@@ -836,12 +836,16 @@
                     // Now create the properties with the PropertySet
                     updateStatus(`Creating ${missingProperties.length} missing properties...`, 'info');
 
+                    // PropertySet ID might be returned as a string or an object with id property
+                    const propertySetId = typeof propertySet === 'string' ? propertySet : propertySet.id;
+                    console.log('Using PropertySet ID:', propertySetId);
+
                     for (const prop of missingProperties) {
                         try {
                             const propertyEntity = {
                                 name: prop.name,
                                 description: prop.description,
-                                propertySet: { id: propertySet.id },
+                                propertySet: { id: propertySetId },
                                 entityTypes: ['Device']
                             };
 
