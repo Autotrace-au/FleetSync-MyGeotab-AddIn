@@ -42,26 +42,26 @@
             font-size: 14px;
             line-height: 1.6;
             color: var(--text-color);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #f1f5f9;
             min-height: 100vh;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 100%;
+            margin: 0;
             background-color: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: var(--shadow-xl);
-            overflow: hidden;
+            min-height: 100vh;
         }
 
         header {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
-            padding: 40px;
+            padding: 32px 40px;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         header::before {
@@ -71,8 +71,13 @@
             right: -10%;
             width: 300px;
             height: 300px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 50%;
+        }
+
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         header h1 {
@@ -92,6 +97,8 @@
 
         .content-wrapper {
             padding: 30px 40px;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         section {
@@ -159,9 +166,13 @@
             }
         }
 
-        .status-message::before {
-            font-size: 20px;
+        .status-message svg {
+            width: 20px;
+            height: 20px;
             flex-shrink: 0;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .status-info {
@@ -170,7 +181,10 @@
             border: 1px solid #93c5fd;
         }
 
-        .status-info::before { content: 'ℹ️'; }
+        .status-info svg {
+            stroke: #1e40af;
+            fill: none;
+        }
 
         .status-success {
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
@@ -178,7 +192,10 @@
             border: 1px solid #6ee7b7;
         }
 
-        .status-success::before { content: '✅'; }
+        .status-success svg {
+            stroke: #065f46;
+            fill: none;
+        }
 
         .status-warning {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -186,7 +203,10 @@
             border: 1px solid #fcd34d;
         }
 
-        .status-warning::before { content: '⚠️'; }
+        .status-warning svg {
+            stroke: #92400e;
+            fill: none;
+        }
 
         .status-error {
             background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
@@ -194,7 +214,10 @@
             border: 1px solid #fca5a5;
         }
 
-        .status-error::before { content: '❌'; }
+        .status-error svg {
+            stroke: #991b1b;
+            fill: none;
+        }
 
         .property-list {
             display: grid;
@@ -219,10 +242,26 @@
         }
 
         .property-icon {
-            font-size: 36px;
+            width: 48px;
+            height: 48px;
             margin-right: 18px;
             flex-shrink: 0;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .property-icon svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--primary-color);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .property-details {
@@ -293,6 +332,16 @@
             box-shadow: var(--shadow-sm);
             position: relative;
             overflow: hidden;
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .btn::before {
@@ -398,6 +447,11 @@
             background-color: var(--light-bg);
         }
 
+        .footer-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: 10px;
@@ -434,14 +488,19 @@
 <body>
     <div class="container">
         <header>
-            <h1>FleetSync Property Manager</h1>
-            <p class="subtitle">Manage custom properties for FleetSync equipment mailbox automation</p>
+            <div class="header-content">
+                <h1>FleetSync Property Manager</h1>
+                <p class="subtitle">Manage custom properties for FleetSync equipment mailbox automation</p>
+            </div>
         </header>
 
         <div class="content-wrapper">
             <section class="status-section">
             <h2>Status</h2>
-            <div id="statusMessage" class="status-message"></div>
+            <div id="statusMessage" class="status-message status-info">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>Ready. Click "Check Properties" to scan for existing custom properties.</span>
+            </div>
             <div id="propertyStatus" class="property-status"></div>
         </section>
 
@@ -454,7 +513,12 @@
 
             <div class="property-list">
                 <div class="property-item">
-                    <div class="property-icon">📋</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Is this a bookable resource</h3>
                         <p>Boolean (True/False) - Controls whether the equipment mailbox accepts bookings</p>
@@ -463,7 +527,12 @@
                 </div>
 
                 <div class="property-item">
-                    <div class="property-icon">📍</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Asset Stored Location</h3>
                         <p>Text - Physical location where the asset is stored</p>
@@ -472,7 +541,13 @@
                 </div>
 
                 <div class="property-item">
-                    <div class="property-icon">🏭</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Plant No</h3>
                         <p>Text or Number - Plant or facility identifier</p>
@@ -481,7 +556,14 @@
                 </div>
 
                 <div class="property-item">
-                    <div class="property-icon">📅</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Year Purchased</h3>
                         <p>Number - Year the asset was purchased</p>
@@ -490,7 +572,13 @@
                 </div>
 
                 <div class="property-item">
-                    <div class="property-icon">🔁</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Allow Recurring Booking</h3>
                         <p>Boolean (True/False) - Whether recurring bookings are allowed</p>
@@ -499,7 +587,14 @@
                 </div>
 
                 <div class="property-item">
-                    <div class="property-icon">✅</div>
+                    <div class="property-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 010 7.75"></path>
+                        </svg>
+                    </div>
                     <div class="property-details">
                         <h3>Approvers</h3>
                         <p>Text - Comma or semicolon separated email addresses for booking approvers</p>
@@ -511,15 +606,25 @@
 
         <section class="actions-section">
             <button id="checkPropertiesBtn" class="btn btn-primary">
-                <span class="btn-icon">🔍</span>
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35"></path>
+                </svg>
                 Check Properties
             </button>
             <button id="createPropertiesBtn" class="btn btn-success" disabled>
-                <span class="btn-icon">➕</span>
+                <svg viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
                 Create Missing Properties
             </button>
             <button id="refreshBtn" class="btn btn-secondary">
-                <span class="btn-icon">🔄</span>
+                <svg viewBox="0 0 24 24">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+                </svg>
                 Refresh
             </button>
         </section>
@@ -548,7 +653,9 @@
         </div>
 
         <footer>
-            <p>&copy; 2025 Autotrace. All rights reserved.</p>
+            <div class="footer-content">
+                <p>&copy; 2025 Autotrace. All rights reserved.</p>
+            </div>
         </footer>
     </div>
 
@@ -600,10 +707,20 @@
                 if (refreshBtn) refreshBtn.addEventListener('click', refreshPage);
             }
 
+            function getStatusIcon(type) {
+                const icons = {
+                    info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+                    success: '<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+                    warning: '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+                    error: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
+                };
+                return icons[type] || icons.info;
+            }
+
             function updateStatus(message, type = 'info') {
                 const statusElement = document.getElementById('statusMessage');
                 if (statusElement) {
-                    statusElement.textContent = message;
+                    statusElement.innerHTML = getStatusIcon(type) + '<span>' + message + '</span>';
                     statusElement.className = `status-message status-${type}`;
                 }
             }
@@ -614,10 +731,10 @@
                     if (badge) {
                         const exists = existingProperties.some(ep => ep.name.toLowerCase() === prop.name.toLowerCase());
                         if (exists) {
-                            badge.textContent = '✓ Exists';
+                            badge.textContent = 'Exists';
                             badge.className = 'property-status-badge status-exists';
                         } else {
-                            badge.textContent = '✗ Missing';
+                            badge.textContent = 'Missing';
                             badge.className = 'property-status-badge status-missing';
                         }
                     }
@@ -643,7 +760,7 @@
                     updatePropertyBadges();
 
                     if (missingProperties.length === 0) {
-                        updateStatus('✓ All required properties exist!', 'success');
+                        updateStatus('All required properties exist!', 'success');
                         if (createBtn) createBtn.disabled = true;
                     } else {
                         updateStatus(`Found ${existingProperties.length} properties. ${missingProperties.length} required properties are missing.`, 'warning');
@@ -692,7 +809,7 @@
                     }
 
                     if (errorCount === 0) {
-                        updateStatus(`✓ Successfully created ${successCount} properties!`, 'success');
+                        updateStatus(`Successfully created ${successCount} properties!`, 'success');
                     } else {
                         updateStatus(`Created ${successCount} properties with ${errorCount} errors. Check console for details.`, 'warning');
                     }
