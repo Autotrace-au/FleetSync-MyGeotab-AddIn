@@ -663,7 +663,16 @@
         /**
          * FleetSync Property Manager Add-In
          */
-        geotab.addin.fleetSyncPropertyManager = () => {
+        (function() {
+            // Ensure geotab object exists
+            if (typeof geotab === 'undefined') {
+                window.geotab = {};
+            }
+            if (typeof geotab.addin === 'undefined') {
+                geotab.addin = {};
+            }
+
+            geotab.addin.fleetSyncPropertyManager = () => {
             let api;
             let state;
 
@@ -836,6 +845,7 @@
 
             return { initialize: initialize, focus: focus, blur: blur };
         };
+        })();
     </script>
 </body>
 </html>
