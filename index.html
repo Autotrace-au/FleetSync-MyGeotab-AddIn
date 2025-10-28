@@ -782,7 +782,7 @@
                     return;
                 }
 
-                updateStatus(`Creating ${missingProperties.length} missing properties...`, 'info');
+                updateStatus('Creating FleetSync PropertySet...', 'info');
                 const createBtn = document.getElementById('createPropertiesBtn');
                 if (createBtn) createBtn.disabled = true;
 
@@ -790,11 +790,58 @@
                 let errorCount = 0;
 
                 try {
+                    // First, check if FleetSync PropertySet exists
+                    let propertySet;
+                    try {
+                        const propertySets = await new Promise((resolve, reject) => {
+                            api.call('Get', {
+                                typeName: 'PropertySet',
+                                search: { name: 'FleetSync Properties' }
+                            }, resolve, reject);
+                        });
+
+                        if (propertySets && propertySets.length > 0) {
+                            propertySet = propertySets[0];
+                            console.log('Found existing FleetSync PropertySet:', propertySet);
+                        }
+                    } catch (error) {
+                        console.log('PropertySet not found, will create new one');
+                    }
+
+                    // Create PropertySet if it doesn't exist
+                    if (!propertySet) {
+                        updateStatus('Creating FleetSync PropertySet...', 'info');
+                        try {
+                            const propertySetEntity = {
+                                name: 'FleetSync Properties',
+                                description: 'Custom properties for FleetSync equipment mailbox automation'
+                            };
+
+                            propertySet = await new Promise((resolve, reject) => {
+                                api.call('Add', {
+                                    typeName: 'PropertySet',
+                                    entity: propertySetEntity
+                                }, resolve, reject);
+                            });
+
+                            console.log('Created PropertySet:', propertySet);
+                        } catch (error) {
+                            console.error('Failed to create PropertySet:', error);
+                            updateStatus(`Error: Failed to create PropertySet - ${error.message || error}`, 'error');
+                            if (createBtn) createBtn.disabled = false;
+                            return;
+                        }
+                    }
+
+                    // Now create the properties with the PropertySet
+                    updateStatus(`Creating ${missingProperties.length} missing properties...`, 'info');
+
                     for (const prop of missingProperties) {
                         try {
                             const propertyEntity = {
                                 name: prop.name,
                                 description: prop.description,
+                                propertySet: { id: propertySet.id },
                                 entityTypes: ['Device']
                             };
 
