@@ -394,6 +394,12 @@
                     });
 
                     existingProperties = properties || [];
+
+                    // Log a sample property to see its structure
+                    if (existingProperties.length > 0) {
+                        console.log('Sample existing property structure:', JSON.stringify(existingProperties[0], null, 2));
+                    }
+
                     missingProperties = REQUIRED_PROPERTIES.filter(reqProp => {
                         return !existingProperties.some(existProp => existProp.name.toLowerCase() === reqProp.name.toLowerCase());
                     });
@@ -481,6 +487,7 @@
 
                     for (const prop of missingProperties) {
                         try {
+                            // MyGeotab Property entity structure
                             const propertyEntity = {
                                 name: prop.name,
                                 description: prop.description,
@@ -488,21 +495,8 @@
                                 entityTypes: ['Device']
                             };
 
-                            // Add propertyType based on dataType
-                            switch (prop.dataType) {
-                                case 'Boolean':
-                                    propertyEntity.propertyType = { id: 'PropertyBooleanType' };
-                                    break;
-                                case 'Number':
-                                    propertyEntity.propertyType = { id: 'PropertyNumberType' };
-                                    break;
-                                case 'String':
-                                default:
-                                    propertyEntity.propertyType = { id: 'PropertyTextType' };
-                                    break;
-                            }
-
-                            console.log('Creating property with entity:', propertyEntity);
+                            console.log('Creating property:', prop.name, 'with dataType:', prop.dataType);
+                            console.log('Property entity:', JSON.stringify(propertyEntity, null, 2));
 
                             await new Promise((resolve, reject) => {
                                 api.call('Add', { typeName: 'Property', entity: propertyEntity }, resolve, reject);
