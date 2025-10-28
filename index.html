@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FleetSync Property Manager</title>
+    <style>
+        /* Embedded CSS for reliability */
+        :root {
+            --primary-color: #0066cc;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --info-color: #17a2b8;
+            --secondary-color: #6c757d;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: #ffffff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid var(--primary-color); }
+        header h1 { font-size: 28px; font-weight: 600; color: var(--primary-color); margin-bottom: 8px; }
+        .subtitle { font-size: 16px; color: var(--text-muted); }
+        section { margin-bottom: 30px; padding: 20px; background-color: var(--light-bg); border-radius: 8px; border: 1px solid var(--border-color); }
+        section h2 { font-size: 20px; font-weight: 600; margin-bottom: 15px; color: var(--text-color); }
+        .status-section { background-color: #ffffff; }
+        .status-message { padding: 12px 16px; border-radius: 6px; font-weight: 500; margin-bottom: 10px; }
+        .status-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .property-list { display: grid; gap: 15px; }
+        .property-item { display: flex; align-items: flex-start; padding: 16px; background-color: #ffffff; border-radius: 8px; border: 1px solid var(--border-color); transition: box-shadow 0.2s ease; }
+        .property-item:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+        .property-icon { font-size: 32px; margin-right: 16px; flex-shrink: 0; }
+        .property-details { flex: 1; }
+        .property-details h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text-color); }
+        .property-details p { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+        .property-status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: var(--light-bg); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .property-status-badge.status-exists { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .property-status-badge.status-missing { background-color: #fff3cd; color: #856404; border-color: #ffeaa7; }
+        .actions-section { display: flex; gap: 12px; flex-wrap: wrap; background-color: #ffffff; padding: 20px; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+        .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
+        .btn:active:not(:disabled) { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background-color: var(--primary-color); color: #ffffff; }
+        .btn-primary:hover:not(:disabled) { background-color: #0052a3; }
+        .btn-success { background-color: var(--success-color); color: #ffffff; }
+        .btn-success:hover:not(:disabled) { background-color: #218838; }
+        .btn-secondary { background-color: var(--secondary-color); color: #ffffff; }
+        .btn-secondary:hover:not(:disabled) { background-color: #5a6268; }
+        .help-section { background-color: #e7f3ff; border-color: #b3d9ff; }
+        .help-section ul { margin-left: 20px; margin-top: 10px; margin-bottom: 10px; }
+        .help-section li { margin-bottom: 6px; }
+        footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FleetSync Property Manager</h1>
+            <p class="subtitle">Manage custom properties for FleetSync equipment mailbox automation</p>
+        </header>
+
+        <section class="status-section">
+            <h2>Status</h2>
+            <div id="statusMessage" class="status-message"></div>
+            <div id="propertyStatus" class="property-status"></div>
+        </section>
+
+        <section class="properties-section">
+            <h2>Required Custom Properties</h2>
+            <p class="info-text">
+                These custom properties are required by the FleetSync orchestrator to manage Exchange equipment mailboxes.
+                Click "Check Properties" to verify which properties exist, then "Create Missing Properties" to add any that are missing.
+            </p>
+
+            <div class="property-list">
+                <div class="property-item">
+                    <div class="property-icon">📋</div>
+                    <div class="property-details">
+                        <h3>Is this a bookable resource</h3>
+                        <p>Boolean (True/False) - Controls whether the equipment mailbox accepts bookings</p>
+                        <span class="property-status-badge" data-property="Bookable">Not checked</span>
+                    </div>
+                </div>
+
+                <div class="property-item">
+                    <div class="property-icon">📍</div>
+                    <div class="property-details">
+                        <h3>Asset Stored Location</h3>
+                        <p>Text - Physical location where the asset is stored</p>
+                        <span class="property-status-badge" data-property="AssetStoredLocation">Not checked</span>
+                    </div>
+                </div>
+
+                <div class="property-item">
+                    <div class="property-icon">🏭</div>
+                    <div class="property-details">
+                        <h3>Plant No</h3>
+                        <p>Text or Number - Plant or facility identifier</p>
+                        <span class="property-status-badge" data-property="PlantNo">Not checked</span>
+                    </div>
+                </div>
+
+                <div class="property-item">
+                    <div class="property-icon">📅</div>
+                    <div class="property-details">
+                        <h3>Year Purchased</h3>
+                        <p>Number - Year the asset was purchased</p>
+                        <span class="property-status-badge" data-property="YearPurchased">Not checked</span>
+                    </div>
+                </div>
+
+                <div class="property-item">
+                    <div class="property-icon">🔁</div>
+                    <div class="property-details">
+                        <h3>Allow Recurring Booking</h3>
+                        <p>Boolean (True/False) - Whether recurring bookings are allowed</p>
+                        <span class="property-status-badge" data-property="AllowRecurringBooking">Not checked</span>
+                    </div>
+                </div>
+
+                <div class="property-item">
+                    <div class="property-icon">✅</div>
+                    <div class="property-details">
+                        <h3>Approvers</h3>
+                        <p>Text - Comma or semicolon separated email addresses for booking approvers</p>
+                        <span class="property-status-badge" data-property="Approvers">Not checked</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="actions-section">
+            <button id="checkPropertiesBtn" class="btn btn-primary">
+                <span class="btn-icon">🔍</span>
+                Check Properties
+            </button>
+            <button id="createPropertiesBtn" class="btn btn-success" disabled>
+                <span class="btn-icon">➕</span>
+                Create Missing Properties
+            </button>
+            <button id="refreshBtn" class="btn btn-secondary">
+                <span class="btn-icon">🔄</span>
+                Refresh
+            </button>
+        </section>
+
+        <section class="help-section">
+            <h2>About FleetSync</h2>
+            <p>
+                FleetSync creates and configures Exchange equipment mailboxes for vehicles and trailers, 
+                sourced from MyGeotab assets, using an Azure Automation runbook orchestrator so staff can 
+                book cars and trailers in Outlook.
+            </p>
+            <p>
+                These custom properties allow the FleetSync orchestrator to:
+            </p>
+            <ul>
+                <li>Control booking availability and permissions</li>
+                <li>Set resource location and identification details</li>
+                <li>Configure approval workflows</li>
+                <li>Manage recurring booking policies</li>
+            </ul>
+            <p class="help-link">
+                For more information, visit the 
+                <a href="https://github.com/Autotrace-au/AHC-AssetCreator" target="_blank">FleetSync repository</a>.
+            </p>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 Autotrace. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        /**
+         * FleetSync Property Manager Add-In
+         */
+        geotab.addin.fleetSyncPropertyManager = () => {
+            let api;
+            let state;
+
+            const REQUIRED_PROPERTIES = [
+                { name: 'Is this a bookable resource', internalName: 'Bookable', description: 'Controls whether the equipment mailbox accepts bookings', dataType: 'Boolean' },
+                { name: 'Asset Stored Location', internalName: 'AssetStoredLocation', description: 'Physical location where the asset is stored', dataType: 'String' },
+                { name: 'Plant No', internalName: 'PlantNo', description: 'Plant or facility identifier', dataType: 'String' },
+                { name: 'Year Purchased', internalName: 'YearPurchased', description: 'Year the asset was purchased', dataType: 'Number' },
+                { name: 'Allow Recurring Booking', internalName: 'AllowRecurringBooking', description: 'Whether recurring bookings are allowed', dataType: 'Boolean' },
+                { name: 'Approvers', internalName: 'Approvers', description: 'Comma or semicolon separated email addresses for booking approvers', dataType: 'String' }
+            ];
+
+            let existingProperties = [];
+            let missingProperties = [];
+
+            function initialize(apiInstance, stateInstance, callback) {
+                api = apiInstance;
+                state = stateInstance;
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', setupEventListeners);
+                } else {
+                    setupEventListeners();
+                }
+                callback();
+            }
+
+            function focus(apiInstance, stateInstance) {
+                api = apiInstance;
+                state = stateInstance;
+                updateStatus('Ready. Click "Check Properties" to scan for existing custom properties.', 'info');
+            }
+
+            function blur(apiInstance, stateInstance) {}
+
+            function setupEventListeners() {
+                const checkBtn = document.getElementById('checkPropertiesBtn');
+                const createBtn = document.getElementById('createPropertiesBtn');
+                const refreshBtn = document.getElementById('refreshBtn');
+                if (checkBtn) checkBtn.addEventListener('click', checkProperties);
+                if (createBtn) createBtn.addEventListener('click', createMissingProperties);
+                if (refreshBtn) refreshBtn.addEventListener('click', refreshPage);
+            }
+
+            function updateStatus(message, type = 'info') {
+                const statusElement = document.getElementById('statusMessage');
+                if (statusElement) {
+                    statusElement.textContent = message;
+                    statusElement.className = `status-message status-${type}`;
+                }
+            }
+
+            function updatePropertyBadges() {
+                REQUIRED_PROPERTIES.forEach(prop => {
+                    const badge = document.querySelector(`[data-property="${prop.internalName}"]`);
+                    if (badge) {
+                        const exists = existingProperties.some(ep => ep.name.toLowerCase() === prop.name.toLowerCase());
+                        if (exists) {
+                            badge.textContent = '✓ Exists';
+                            badge.className = 'property-status-badge status-exists';
+                        } else {
+                            badge.textContent = '✗ Missing';
+                            badge.className = 'property-status-badge status-missing';
+                        }
+                    }
+                });
+            }
+
+            async function checkProperties() {
+                updateStatus('Checking existing custom properties...', 'info');
+                const checkBtn = document.getElementById('checkPropertiesBtn');
+                const createBtn = document.getElementById('createPropertiesBtn');
+                if (checkBtn) checkBtn.disabled = true;
+
+                try {
+                    const properties = await new Promise((resolve, reject) => {
+                        api.call('Get', { typeName: 'Property', search: {} }, resolve, reject);
+                    });
+
+                    existingProperties = properties || [];
+                    missingProperties = REQUIRED_PROPERTIES.filter(reqProp => {
+                        return !existingProperties.some(existProp => existProp.name.toLowerCase() === reqProp.name.toLowerCase());
+                    });
+
+                    updatePropertyBadges();
+
+                    if (missingProperties.length === 0) {
+                        updateStatus('✓ All required properties exist!', 'success');
+                        if (createBtn) createBtn.disabled = true;
+                    } else {
+                        updateStatus(`Found ${existingProperties.length} properties. ${missingProperties.length} required properties are missing.`, 'warning');
+                        if (createBtn) createBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Error checking properties:', error);
+                    updateStatus(`Error: ${error.message || 'Failed to check properties'}`, 'error');
+                } finally {
+                    if (checkBtn) checkBtn.disabled = false;
+                }
+            }
+
+            async function createMissingProperties() {
+                if (missingProperties.length === 0) {
+                    updateStatus('No missing properties to create.', 'info');
+                    return;
+                }
+
+                updateStatus(`Creating ${missingProperties.length} missing properties...`, 'info');
+                const createBtn = document.getElementById('createPropertiesBtn');
+                if (createBtn) createBtn.disabled = true;
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                try {
+                    for (const prop of missingProperties) {
+                        try {
+                            const propertyEntity = {
+                                name: prop.name,
+                                description: prop.description,
+                                entityTypes: ['Device']
+                            };
+
+                            await new Promise((resolve, reject) => {
+                                api.call('Add', { typeName: 'Property', entity: propertyEntity }, resolve, reject);
+                            });
+
+                            successCount++;
+                            console.log(`Created property: ${prop.name}`);
+                        } catch (error) {
+                            errorCount++;
+                            console.error(`Failed to create property ${prop.name}:`, error);
+                        }
+                    }
+
+                    if (errorCount === 0) {
+                        updateStatus(`✓ Successfully created ${successCount} properties!`, 'success');
+                    } else {
+                        updateStatus(`Created ${successCount} properties with ${errorCount} errors. Check console for details.`, 'warning');
+                    }
+
+                    setTimeout(() => checkProperties(), 1000);
+                } catch (error) {
+                    console.error('Error creating properties:', error);
+                    updateStatus(`Error: ${error.message || 'Failed to create properties'}`, 'error');
+                }
+            }
+
+            function refreshPage() {
+                existingProperties = [];
+                missingProperties = [];
+                const badges = document.querySelectorAll('.property-status-badge');
+                badges.forEach(badge => {
+                    badge.textContent = 'Not checked';
+                    badge.className = 'property-status-badge';
+                });
+                updateStatus('Ready. Click "Check Properties" to scan for existing custom properties.', 'info');
+                const createBtn = document.getElementById('createPropertiesBtn');
+                if (createBtn) createBtn.disabled = true;
+            }
+
+            return { initialize: initialize, focus: focus, blur: blur };
+        };
+    </script>
+</body>
+</html>
+

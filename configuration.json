@@ -1,0 +1,14 @@
+{
+    "name": "FleetSync Property Manager",
+    "supportEmail": "sam@garageofawesome.com.au",
+    "version": "1.0",
+    "items": [
+        {
+            "url": "https://cdn.jsdelivr.net/gh/Autotrace-au/FleetSync-MyGeotab-AddIn@main/index.html",
+            "path": "AdministrationLink/",
+            "menuName": {
+                "en": "FleetSync Properties"
+            }
+        }
+    ]
+}
