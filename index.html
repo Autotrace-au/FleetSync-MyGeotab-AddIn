@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FleetSync Property Manager</title>
     <style>
-        /* Modern CSS with enhanced styling */
-        :root {
+        /* Scoped CSS for MyGeotab Add-In - All selectors prefixed with #fleetSyncAddin */
+        #fleetSyncAddin {
+            /* CSS Variables scoped to the add-in */
             --primary-color: #2563eb;
             --primary-dark: #1e40af;
             --primary-light: #3b82f6;
@@ -29,33 +30,31 @@
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
+            /* Base styles */
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             font-size: 14px;
             line-height: 1.6;
             color: var(--text-color);
             background-color: #f1f5f9;
             min-height: 100vh;
-            padding: 0;
-            margin: 0;
+            box-sizing: border-box;
         }
 
-        .container {
+        #fleetSyncAddin *,
+        #fleetSyncAddin *::before,
+        #fleetSyncAddin *::after {
+            box-sizing: border-box;
+        }
+
+        #fleetSyncAddin .container {
             max-width: 100%;
             margin: 0;
             background-color: var(--card-bg);
             min-height: 100vh;
         }
 
-        header {
+        #fleetSyncAddin header {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
             padding: 32px 40px;
@@ -64,7 +63,7 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        header::before {
+        #fleetSyncAddin header::before {
             content: '';
             position: absolute;
             top: -50%;
@@ -75,12 +74,12 @@
             border-radius: 50%;
         }
 
-        .header-content {
+        #fleetSyncAddin .header-content {
             max-width: 900px;
             margin: 0 auto;
         }
 
-        header h1 {
+        #fleetSyncAddin header h1 {
             font-size: 32px;
             font-weight: 700;
             margin-bottom: 8px;
@@ -88,20 +87,20 @@
             z-index: 1;
         }
 
-        .subtitle {
+        #fleetSyncAddin .subtitle {
             font-size: 16px;
             opacity: 0.9;
             position: relative;
             z-index: 1;
         }
 
-        .content-wrapper {
+        #fleetSyncAddin .content-wrapper {
             padding: 30px 40px;
             max-width: 900px;
             margin: 0 auto;
         }
 
-        section {
+        #fleetSyncAddin section {
             margin-bottom: 30px;
             padding: 24px;
             background-color: var(--light-bg);
@@ -110,11 +109,11 @@
             transition: all 0.3s ease;
         }
 
-        section:hover {
+        #fleetSyncAddin section:hover {
             box-shadow: var(--shadow-md);
         }
 
-        section h2 {
+        #fleetSyncAddin section h2 {
             font-size: 20px;
             font-weight: 700;
             margin-bottom: 16px;
@@ -124,7 +123,7 @@
             gap: 10px;
         }
 
-        section h2::before {
+        #fleetSyncAddin section h2::before {
             content: '';
             width: 4px;
             height: 24px;
@@ -132,18 +131,18 @@
             border-radius: 2px;
         }
 
-        .info-text {
+        #fleetSyncAddin .info-text {
             color: var(--text-muted);
             margin-bottom: 20px;
             line-height: 1.7;
         }
 
-        .status-section {
+        #fleetSyncAddin .status-section {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border-color: #bae6fd;
         }
 
-        .status-message {
+        #fleetSyncAddin .status-message {
             padding: 16px 20px;
             border-radius: 10px;
             font-weight: 500;
@@ -155,74 +154,74 @@
             animation: slideIn 0.3s ease;
         }
 
-        @keyframes slideIn {
-            from {
+        #fleetSyncAddin @keyframes slideIn {
+            #fleetSyncAddin from {
                 opacity: 0;
                 transform: translateY(-10px);
             }
-            to {
+            #fleetSyncAddin to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
 
-        .status-message svg {
+        #fleetSyncAddin .status-message svg {
             max-width: 20px;
             max-height: 20px;
             flex-shrink: 0;
             display: block;
         }
 
-        .status-info {
+        #fleetSyncAddin .status-info {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
             color: #1e40af;
             border: 1px solid #93c5fd;
         }
 
-        .status-info svg {
+        #fleetSyncAddin .status-info svg {
             stroke: #1e40af;
             fill: none;
         }
 
-        .status-success {
+        #fleetSyncAddin .status-success {
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             color: #065f46;
             border: 1px solid #6ee7b7;
         }
 
-        .status-success svg {
+        #fleetSyncAddin .status-success svg {
             stroke: #065f46;
             fill: none;
         }
 
-        .status-warning {
+        #fleetSyncAddin .status-warning {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             color: #92400e;
             border: 1px solid #fcd34d;
         }
 
-        .status-warning svg {
+        #fleetSyncAddin .status-warning svg {
             stroke: #92400e;
             fill: none;
         }
 
-        .status-error {
+        #fleetSyncAddin .status-error {
             background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
             color: #991b1b;
             border: 1px solid #fca5a5;
         }
 
-        .status-error svg {
+        #fleetSyncAddin .status-error svg {
             stroke: #991b1b;
             fill: none;
         }
 
-        .property-list {
+        #fleetSyncAddin .property-list {
             display: grid;
             gap: 16px;
         }
 
-        .property-item {
+        #fleetSyncAddin .property-item {
             display: flex;
             align-items: flex-start;
             padding: 20px;
@@ -233,13 +232,13 @@
             box-shadow: var(--shadow-sm);
         }
 
-        .property-item:hover {
+        #fleetSyncAddin .property-item:hover {
             box-shadow: var(--shadow-lg);
             transform: translateY(-2px);
             border-color: var(--primary-light);
         }
 
-        .property-icon {
+        #fleetSyncAddin .property-icon {
             width: 48px;
             height: 48px;
             margin-right: 18px;
@@ -252,32 +251,32 @@
             padding: 10px;
         }
 
-        .property-icon svg {
+        #fleetSyncAddin .property-icon svg {
             max-width: 28px;
             max-height: 28px;
             stroke: var(--primary-color);
             display: block;
         }
 
-        .property-details {
+        #fleetSyncAddin .property-details {
             flex: 1;
         }
 
-        .property-details h3 {
+        #fleetSyncAddin .property-details h3 {
             font-size: 17px;
             font-weight: 600;
             margin-bottom: 8px;
             color: var(--text-color);
         }
 
-        .property-details p {
+        #fleetSyncAddin .property-details p {
             font-size: 14px;
             color: var(--text-muted);
             margin-bottom: 12px;
             line-height: 1.6;
         }
 
-        .property-status-badge {
+        #fleetSyncAddin .property-status-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -291,19 +290,19 @@
             transition: all 0.2s ease;
         }
 
-        .property-status-badge.status-exists {
+        #fleetSyncAddin .property-status-badge.status-exists {
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             color: #065f46;
             border-color: #6ee7b7;
         }
 
-        .property-status-badge.status-missing {
+        #fleetSyncAddin .property-status-badge.status-missing {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             color: #92400e;
             border-color: #fcd34d;
         }
 
-        .actions-section {
+        #fleetSyncAddin .actions-section {
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
@@ -312,7 +311,7 @@
             border: 1px solid var(--border-color);
         }
 
-        .btn {
+        #fleetSyncAddin .btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -329,14 +328,14 @@
             overflow: hidden;
         }
 
-        .btn svg {
+        #fleetSyncAddin .btn svg {
             max-width: 18px;
             max-height: 18px;
             stroke: currentColor;
             display: block;
         }
 
-        .btn::before {
+        #fleetSyncAddin .btn::before {
             content: '';
             position: absolute;
             top: 50%;
@@ -349,74 +348,74 @@
             transition: width 0.6s, height 0.6s;
         }
 
-        .btn:hover:not(:disabled)::before {
+        #fleetSyncAddin .btn:hover:not(:disabled)::before {
             width: 300px;
             height: 300px;
         }
 
-        .btn:hover:not(:disabled) {
+        #fleetSyncAddin .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
 
-        .btn:active:not(:disabled) {
+        #fleetSyncAddin .btn:active:not(:disabled) {
             transform: translateY(0);
         }
 
-        .btn:disabled {
+        #fleetSyncAddin .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             box-shadow: none;
         }
 
-        .btn-primary {
+        #fleetSyncAddin .btn-primary {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: #ffffff;
         }
 
-        .btn-primary:hover:not(:disabled) {
+        #fleetSyncAddin .btn-primary:hover:not(:disabled) {
             background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
         }
 
-        .btn-success {
+        #fleetSyncAddin .btn-success {
             background: linear-gradient(135deg, var(--success-color) 0%, var(--success-dark) 100%);
             color: #ffffff;
         }
 
-        .btn-success:hover:not(:disabled) {
+        #fleetSyncAddin .btn-success:hover:not(:disabled) {
             background: linear-gradient(135deg, #34d399 0%, var(--success-color) 100%);
         }
 
-        .btn-secondary {
+        #fleetSyncAddin .btn-secondary {
             background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-dark) 100%);
             color: #ffffff;
         }
 
-        .btn-secondary:hover:not(:disabled) {
+        #fleetSyncAddin .btn-secondary:hover:not(:disabled) {
             background: linear-gradient(135deg, #94a3b8 0%, var(--secondary-color) 100%);
         }
 
-        .help-section {
+        #fleetSyncAddin .help-section {
             background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
             border-color: #c4b5fd;
         }
 
-        .help-section ul {
+        #fleetSyncAddin .help-section ul {
             margin-left: 20px;
             margin-top: 12px;
             margin-bottom: 12px;
         }
 
-        .help-section li {
+        #fleetSyncAddin .help-section li {
             margin-bottom: 8px;
             color: var(--text-color);
         }
 
-        .help-link {
+        #fleetSyncAddin .help-link {
             margin-top: 16px;
         }
 
-        .help-link a {
+        #fleetSyncAddin .help-link a {
             color: var(--primary-color);
             text-decoration: none;
             font-weight: 600;
@@ -424,12 +423,12 @@
             border-bottom: 2px solid transparent;
         }
 
-        .help-link a:hover {
+        #fleetSyncAddin .help-link a:hover {
             color: var(--primary-dark);
             border-bottom-color: var(--primary-color);
         }
 
-        footer {
+        #fleetSyncAddin footer {
             margin-top: 0;
             padding: 24px 40px;
             border-top: 1px solid var(--border-color);
@@ -439,45 +438,46 @@
             background-color: var(--light-bg);
         }
 
-        .footer-content {
+        #fleetSyncAddin .footer-content {
             max-width: 900px;
             margin: 0 auto;
         }
 
-        @media (max-width: 768px) {
-            body {
+        #fleetSyncAddin @media (max-width: 768px) {
+            #fleetSyncAddin body {
                 padding: 10px;
             }
 
-            header {
+            #fleetSyncAddin header {
                 padding: 30px 20px;
             }
 
-            .content-wrapper {
+            #fleetSyncAddin .content-wrapper {
                 padding: 20px;
             }
 
-            section {
+            #fleetSyncAddin section {
                 padding: 16px;
             }
 
-            .property-item {
+            #fleetSyncAddin .property-item {
                 flex-direction: column;
                 text-align: center;
             }
 
-            .property-icon {
+            #fleetSyncAddin .property-icon {
                 margin-right: 0;
                 margin-bottom: 12px;
             }
 
-            footer {
+            #fleetSyncAddin footer {
                 padding: 20px;
             }
         }
     </style>
 </head>
 <body>
+    <div id="fleetSyncAddin">
     <div class="container">
         <header>
             <div class="header-content">
@@ -649,6 +649,7 @@
                 <p>&copy; 2025 Autotrace. All rights reserved.</p>
             </div>
         </footer>
+    </div>
     </div>
 
     <script>
