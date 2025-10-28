@@ -481,11 +481,27 @@
 
                     for (const prop of missingProperties) {
                         try {
+                            // Map our dataType to MyGeotab PropertyType
+                            let propertyType;
+                            switch (prop.dataType) {
+                                case 'Boolean':
+                                    propertyType = 'PropertyBooleanType';
+                                    break;
+                                case 'Number':
+                                    propertyType = 'PropertyNumberType';
+                                    break;
+                                case 'String':
+                                default:
+                                    propertyType = 'PropertyTextType';
+                                    break;
+                            }
+
                             const propertyEntity = {
                                 name: prop.name,
                                 description: prop.description,
                                 propertySet: { id: propertySetId },
-                                entityTypes: ['Device']
+                                entityTypes: ['Device'],
+                                propertyType: propertyType
                             };
 
                             await new Promise((resolve, reject) => {
