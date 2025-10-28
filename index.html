@@ -481,28 +481,28 @@
 
                     for (const prop of missingProperties) {
                         try {
-                            // Map our dataType to MyGeotab PropertyType
-                            let propertyType;
-                            switch (prop.dataType) {
-                                case 'Boolean':
-                                    propertyType = 'PropertyBooleanType';
-                                    break;
-                                case 'Number':
-                                    propertyType = 'PropertyNumberType';
-                                    break;
-                                case 'String':
-                                default:
-                                    propertyType = 'PropertyTextType';
-                                    break;
-                            }
-
                             const propertyEntity = {
                                 name: prop.name,
                                 description: prop.description,
                                 propertySet: { id: propertySetId },
-                                entityTypes: ['Device'],
-                                propertyType: propertyType
+                                entityTypes: ['Device']
                             };
+
+                            // Add propertyType based on dataType
+                            switch (prop.dataType) {
+                                case 'Boolean':
+                                    propertyEntity.propertyType = { id: 'PropertyBooleanType' };
+                                    break;
+                                case 'Number':
+                                    propertyEntity.propertyType = { id: 'PropertyNumberType' };
+                                    break;
+                                case 'String':
+                                default:
+                                    propertyEntity.propertyType = { id: 'PropertyTextType' };
+                                    break;
+                            }
+
+                            console.log('Creating property with entity:', propertyEntity);
 
                             await new Promise((resolve, reject) => {
                                 api.call('Add', { typeName: 'Property', entity: propertyEntity }, resolve, reject);
