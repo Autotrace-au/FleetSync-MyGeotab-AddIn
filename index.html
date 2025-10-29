@@ -309,12 +309,23 @@
             let state;
 
             const REQUIRED_PROPERTIES = [
-                { name: 'Is this a bookable resource', internalName: 'Bookable', description: 'Controls whether the equipment mailbox accepts bookings', dataType: 'Boolean' },
-                { name: 'Asset Stored Location', internalName: 'AssetStoredLocation', description: 'Physical location where the asset is stored', dataType: 'String' },
-                { name: 'Plant No', internalName: 'PlantNo', description: 'Plant or facility identifier', dataType: 'String' },
-                { name: 'Year Purchased', internalName: 'YearPurchased', description: 'Year the asset was purchased', dataType: 'Integer' },
-                { name: 'Allow Recurring Booking', internalName: 'AllowRecurringBooking', description: 'Whether recurring bookings are allowed', dataType: 'Boolean' },
-                { name: 'Approvers', internalName: 'Approvers', description: 'Comma or semicolon separated email addresses for booking approvers', dataType: 'String' }
+                // Booking Configuration
+                { name: 'Enable Equipment Booking', internalName: 'Bookable', description: 'Allow this equipment to be booked through Outlook/Teams calendar. When enabled, an Exchange mailbox will be created and configured for booking.', dataType: 'Boolean' },
+                { name: 'Allow Recurring Bookings', internalName: 'AllowRecurringBooking', description: 'Permit users to create recurring/repeating bookings for this equipment (e.g., weekly bookings).', dataType: 'Boolean' },
+                { name: 'Booking Approvers', internalName: 'Approvers', description: 'Email addresses of people who must approve booking requests (semicolon-separated). Leave empty for automatic approval. Example: manager@company.com.au;supervisor@company.com.au', dataType: 'String' },
+                { name: 'Fleet Managers', internalName: 'FleetManagers', description: 'Email addresses of fleet managers who need full calendar access to view and manage all bookings (semicolon-separated). Example: fleet@company.com.au', dataType: 'String' },
+                { name: 'Allow Double Booking', internalName: 'AllowConflicts', description: 'Allow multiple bookings at the same time (double-booking). Normally disabled to prevent scheduling conflicts.', dataType: 'Boolean' },
+                { name: 'Booking Window (Days)', internalName: 'BookingWindowInDays', description: 'How many days in advance users can book this equipment. Example: 90 means users can book up to 90 days ahead.', dataType: 'Integer' },
+                { name: 'Maximum Booking Duration (Hours)', internalName: 'MaximumDurationInHours', description: 'Maximum length of a single booking in hours. Example: 8 means bookings cannot exceed 8 hours (1 day).', dataType: 'Integer' },
+
+                // Asset Information
+                { name: 'Asset Storage Location', internalName: 'AssetStoredLocation', description: 'Physical location where this equipment is normally stored or parked. Example: "Depot A - Bay 3" or "Head Office Car Park".', dataType: 'String' },
+                { name: 'Plant Number', internalName: 'PlantNo', description: 'Internal plant or asset number used for tracking and identification in your organisation.', dataType: 'String' },
+                { name: 'Year Purchased', internalName: 'YearPurchased', description: 'The year this equipment was purchased or acquired. Example: 2022', dataType: 'Integer' },
+                { name: 'Equipment Category', internalName: 'EquipmentCategory', description: 'Classification or type of equipment. Example: "Light Vehicle", "Heavy Vehicle", "Trailer", "Plant Equipment".', dataType: 'String' },
+
+                // Regional Settings
+                { name: 'Mailbox Language', internalName: 'MailboxLanguage', description: 'Language code for booking confirmation emails. Default: en-AU (Australian English). Other examples: en-US, en-GB.', dataType: 'String' }
             ];
 
             let existingProperties = [];
