@@ -449,27 +449,27 @@ function Get-GeotabDevices {
       else { $acs=[string]$allowConflictsFromCP; $acs=$acs.Trim().ToLowerInvariant(); $allowConflicts = ($acs -in @('true','1','on','yes','y')) }
     }
 
-    # Normalise BookingWindow to Integer with default 90
+    # Normalise BookingWindow to Integer with default 90 days (blank = use default)
     $bookingWindow = 90
-    if ($null -ne $bookingWindowFromCP) {
+    if ($null -ne $bookingWindowFromCP -and -not [string]::IsNullOrWhiteSpace($bookingWindowFromCP)) {
       if ($bookingWindowFromCP -is [int]) { $bookingWindow = [int]$bookingWindowFromCP }
       elseif ($bookingWindowFromCP -is [string]) {
         $bws = $bookingWindowFromCP.Trim()
         if ($bws -match '^\d+$') { $bookingWindow = [int]$bws }
       }
     }
-    if ($bookingWindow -lt 0) { $bookingWindow = 90 }
+    if ($bookingWindow -lt 1) { $bookingWindow = 90 }
 
-    # Normalise MaximumDuration to Integer (hours) with default 8, convert to minutes for Exchange
-    $maxDurationHours = 8
-    if ($null -ne $maxDurationFromCP) {
+    # Normalise MaximumDuration to Integer (hours) with default 24 hours (blank = use default)
+    $maxDurationHours = 24
+    if ($null -ne $maxDurationFromCP -and -not [string]::IsNullOrWhiteSpace($maxDurationFromCP)) {
       if ($maxDurationFromCP -is [int]) { $maxDurationHours = [int]$maxDurationFromCP }
       elseif ($maxDurationFromCP -is [string]) {
         $mds = $maxDurationFromCP.Trim()
         if ($mds -match '^\d+$') { $maxDurationHours = [int]$mds }
       }
     }
-    if ($maxDurationHours -lt 1) { $maxDurationHours = 8 }
+    if ($maxDurationHours -lt 1) { $maxDurationHours = 24 }
     $maxDurationMinutes = $maxDurationHours * 60
 
     # Equipment Category (prefer custom property, fallback to AssetType)
@@ -531,7 +531,7 @@ function New-EquipmentMailboxIfMissing {
     [string[]]$FleetManagers,
     [object]$AllowConflicts,
     [int]$BookingWindowInDays = 90,
-    [int]$MaximumDurationInMinutes = 480,
+    [int]$MaximumDurationInMinutes = 1440,
     [string]$EquipmentCategory,
     [string]$MailboxLanguage = 'en-AU'
   )
