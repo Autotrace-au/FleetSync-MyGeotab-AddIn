@@ -53,13 +53,20 @@ For example:
 
    **✅ Auto-Accepted (No Approval Required)**
    - You'll receive an email: "Accepted: [Your Booking]"
+   - The email will contain a prominent confirmation message
    - The equipment is now booked for you
-   - It will appear in your calendar
+   - It will appear in your calendar with "Accepted" status
 
    **⏳ Pending Approval (Approval Required)**
    - You'll receive an email: "Tentative: [Your Booking]"
    - A fleet manager or approver needs to approve your request
    - You'll get another email once approved or declined
+
+   **❌ Declined (Not Available)**
+   - You'll receive an email: "Declined: [Your Booking]"
+   - **IMPORTANT:** The booking will stay in your calendar but you do NOT have the equipment
+   - **You MUST delete the calendar entry manually** to avoid confusion
+   - Book a different time or different equipment
 
 ---
 
@@ -188,6 +195,13 @@ If the equipment has **approvers** configured:
 
 **Important:** Always cancel bookings you no longer need so others can use the equipment!
 
+### To Delete a Declined Booking:
+1. Open the declined booking in your calendar (it will show as "Declined")
+2. Click **Delete** (do NOT click "Send Cancellation" - it's already declined)
+3. The entry is removed from your calendar
+
+**⚠️ Critical:** Declined bookings stay in your calendar but you do NOT have the equipment. Always delete them immediately to avoid confusion.
+
 ---
 
 ## Checking Equipment Availability
@@ -245,12 +259,15 @@ If the equipment has **approvers** configured:
 ---
 
 ### "The booking was declined"
-**Problem:** An approver rejected your booking request.
+**Problem:** An approver rejected your booking request, or the equipment is not available.
 
 **Solution:**
-- Contact the approver to understand why
+- **IMPORTANT: DELETE the calendar entry immediately** - Declined bookings stay in your calendar but you do NOT have the equipment
+- Contact the approver to understand why it was declined
 - Try booking a different time or equipment
 - Provide more details in your booking request
+
+**⚠️ WARNING:** Outlook and Teams do NOT automatically remove declined bookings from your calendar. You must manually delete them to avoid confusion.
 
 ---
 

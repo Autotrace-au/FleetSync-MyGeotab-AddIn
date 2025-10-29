@@ -585,6 +585,15 @@ function New-EquipmentMailboxIfMissing {
     else { $acs=[string]$AllowConflicts; $acs=$acs.Trim().ToLowerInvariant(); $allowConflictsBool = ($acs -in @('true','1','on','yes','y')) }
   }
 
+  # Prominent response message for accepted/declined bookings
+  $responseMessage = @"
+✅ BOOKING CONFIRMED - This equipment has been reserved for you.
+
+Please cancel this booking if your plans change so others can use the equipment.
+
+If this booking was DECLINED, please DELETE this calendar entry immediately - you do NOT have the equipment.
+"@
+
   # Booking rules (using custom property values)
   try {
     Set-CalendarProcessing -Identity $mbx.Identity `
@@ -597,11 +606,12 @@ function New-EquipmentMailboxIfMissing {
       -BookingWindowInDays $BookingWindowInDays `
       -MaximumDurationInMinutes $MaximumDurationInMinutes `
       -AllowRecurringMeetings:$allowRecurring `
-      -AddAdditionalResponse:$false `
+      -AddAdditionalResponse:$true `
+      -AdditionalResponse $responseMessage `
       -DeleteComments:$false `
       -DeleteSubject:$false `
       -RemovePrivateProperty:$true `
-      -AddOrganizerToSubject:$false `
+      -AddOrganizerToSubject:$true `
       -EnforceCapacity:$true `
       -EnforceSchedulingHorizon:$true `
       -ScheduleOnlyDuringWorkHours:$scheduleOnly
