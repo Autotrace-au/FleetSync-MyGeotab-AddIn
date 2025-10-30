@@ -135,6 +135,14 @@
 #fleetSyncAddin .group-assign-btn:hover { background-color: var(--light-bg); }
 #fleetSyncAddin .group-assign-btn svg { width: 20px; height: 20px; stroke: var(--secondary-color); }
 #fleetSyncAddin .group-assign-btn:hover svg { stroke: var(--primary-color); }
+#fleetSyncAddin .group-header-row { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); cursor: pointer; transition: all 0.2s ease; }
+#fleetSyncAddin .group-header-row:hover { background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); }
+#fleetSyncAddin .group-header-row td { padding: 12px 8px; font-weight: 700; font-size: 13px; color: var(--text-color); border-bottom: 2px solid var(--border-color); }
+#fleetSyncAddin .group-header-content { display: flex; align-items: center; gap: 8px; }
+#fleetSyncAddin .group-header-icon { transition: transform 0.3s ease; }
+#fleetSyncAddin .group-header-icon.collapsed { transform: rotate(-90deg); }
+#fleetSyncAddin .group-asset-row { background-color: var(--card-bg); }
+#fleetSyncAddin .group-asset-row.hidden { display: none; }
 #fleetSyncAddin .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #fleetSyncAddin footer { margin-top: 0; padding: 24px 40px; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 12px; background-color: var(--light-bg); }
@@ -1181,51 +1189,148 @@
                 const tbody = document.getElementById('assetTableBody');
                 tbody.innerHTML = '';
 
+                // Group assets by their groupId
+                const groupedAssets = {};
+                const ungroupedAssets = [];
+
                 allAssets.forEach((asset, index) => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>
-                            <button class="group-assign-btn" data-assign-group="${index}" title="Assign to group">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"></path>
-                                </svg>
-                            </button>
-                        </td>
-                        <td>
-                            <div class="asset-name">${escapeHtml(asset.name)}</div>
-                            <div class="asset-serial">${escapeHtml(asset.serialNumber)}</div>
-                        </td>
-                        <td><input type="checkbox" data-asset="${index}" data-prop="bookable" ${asset.properties.bookable ? 'checked' : ''}></td>
-                        <td><input type="checkbox" data-asset="${index}" data-prop="recurring" ${asset.properties.recurring ? 'checked' : ''}></td>
-                        <td><input type="text" data-asset="${index}" data-prop="approvers" value="${escapeHtml(asset.properties.approvers)}" placeholder="email1;email2"></td>
-                        <td><input type="text" data-asset="${index}" data-prop="fleetManagers" value="${escapeHtml(asset.properties.fleetManagers)}" placeholder="email1;email2"></td>
-                        <td><input type="checkbox" data-asset="${index}" data-prop="conflicts" ${asset.properties.conflicts ? 'checked' : ''}></td>
-                        <td><input type="number" data-asset="${index}" data-prop="windowDays" value="${asset.properties.windowDays}" min="1" max="365"></td>
-                        <td><input type="number" data-asset="${index}" data-prop="maxDurationHours" value="${asset.properties.maxDurationHours}" min="1" max="720"></td>
-                        <td><input type="text" data-asset="${index}" data-prop="language" value="${escapeHtml(asset.properties.language)}" placeholder="en-AU"></td>
-                        <td class="save-btn-cell">
-                            <button class="btn btn-primary btn-save" data-save-asset="${index}">Save</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-
-                    // Add change listeners
-                    row.querySelectorAll('input').forEach(input => {
-                        input.addEventListener('change', () => trackAssetChange(index));
-                    });
-
-                    // Add save button listener
-                    const saveBtn = row.querySelector('[data-save-asset]');
-                    if (saveBtn) {
-                        saveBtn.addEventListener('click', () => saveAsset(index));
-                    }
-
-                    // Add group assignment button listener
-                    const groupBtn = row.querySelector('[data-assign-group]');
-                    if (groupBtn) {
-                        groupBtn.addEventListener('click', () => showGroupAssignmentModal(index));
+                    asset.originalIndex = index; // Store original index for reference
+                    if (asset.groupId) {
+                        if (!groupedAssets[asset.groupId]) {
+                            groupedAssets[asset.groupId] = [];
+                        }
+                        groupedAssets[asset.groupId].push(asset);
+                    } else {
+                        ungroupedAssets.push(asset);
                     }
                 });
+
+                // Render groups first
+                Object.keys(groupedAssets).forEach(groupId => {
+                    const group = assetGroups.find(g => g.id === groupId);
+                    if (!group) return;
+
+                    const assets = groupedAssets[groupId];
+
+                    // Create group header row
+                    const headerRow = document.createElement('tr');
+                    headerRow.className = 'group-header-row';
+                    headerRow.dataset.groupId = groupId;
+                    headerRow.innerHTML = `
+                        <td colspan="11">
+                            <div class="group-header-content">
+                                <svg class="group-header-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"></path>
+                                </svg>
+                                <span>${escapeHtml(group.name)} (${assets.length} asset${assets.length !== 1 ? 's' : ''})</span>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(headerRow);
+
+                    // Add click listener to toggle collapse
+                    headerRow.addEventListener('click', () => toggleGroupCollapse(groupId));
+
+                    // Render assets in this group
+                    assets.forEach(asset => {
+                        const row = createAssetRow(asset);
+                        row.classList.add('group-asset-row');
+                        row.dataset.groupId = groupId;
+                        tbody.appendChild(row);
+                    });
+                });
+
+                // Render ungrouped assets
+                if (ungroupedAssets.length > 0) {
+                    const headerRow = document.createElement('tr');
+                    headerRow.className = 'group-header-row';
+                    headerRow.dataset.groupId = 'ungrouped';
+                    headerRow.innerHTML = `
+                        <td colspan="11">
+                            <div class="group-header-content">
+                                <svg class="group-header-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                                <span>Ungrouped Assets (${ungroupedAssets.length} asset${ungroupedAssets.length !== 1 ? 's' : ''})</span>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(headerRow);
+
+                    headerRow.addEventListener('click', () => toggleGroupCollapse('ungrouped'));
+
+                    ungroupedAssets.forEach(asset => {
+                        const row = createAssetRow(asset);
+                        row.classList.add('group-asset-row');
+                        row.dataset.groupId = 'ungrouped';
+                        tbody.appendChild(row);
+                    });
+                }
+            }
+
+            function createAssetRow(asset) {
+                const index = asset.originalIndex;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <button class="group-assign-btn" data-assign-group="${index}" title="Assign to group">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"></path>
+                            </svg>
+                        </button>
+                    </td>
+                    <td>
+                        <div class="asset-name">${escapeHtml(asset.name)}</div>
+                        <div class="asset-serial">${escapeHtml(asset.serialNumber)}</div>
+                    </td>
+                    <td><input type="checkbox" data-asset="${index}" data-prop="bookable" ${asset.properties.bookable ? 'checked' : ''}></td>
+                    <td><input type="checkbox" data-asset="${index}" data-prop="recurring" ${asset.properties.recurring ? 'checked' : ''}></td>
+                    <td><input type="text" data-asset="${index}" data-prop="approvers" value="${escapeHtml(asset.properties.approvers)}" placeholder="email1;email2"></td>
+                    <td><input type="text" data-asset="${index}" data-prop="fleetManagers" value="${escapeHtml(asset.properties.fleetManagers)}" placeholder="email1;email2"></td>
+                    <td><input type="checkbox" data-asset="${index}" data-prop="conflicts" ${asset.properties.conflicts ? 'checked' : ''}></td>
+                    <td><input type="number" data-asset="${index}" data-prop="windowDays" value="${asset.properties.windowDays}" min="1" max="365"></td>
+                    <td><input type="number" data-asset="${index}" data-prop="maxDurationHours" value="${asset.properties.maxDurationHours}" min="1" max="720"></td>
+                    <td><input type="text" data-asset="${index}" data-prop="language" value="${escapeHtml(asset.properties.language)}" placeholder="en-AU"></td>
+                    <td class="save-btn-cell">
+                        <button class="btn btn-primary btn-save" data-save-asset="${index}">Save</button>
+                    </td>
+                `;
+
+                // Add change listeners
+                row.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('change', () => trackAssetChange(index));
+                });
+
+                // Add save button listener
+                const saveBtn = row.querySelector('[data-save-asset]');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => saveAsset(index));
+                }
+
+                // Add group assignment button listener
+                const groupBtn = row.querySelector('[data-assign-group]');
+                if (groupBtn) {
+                    groupBtn.addEventListener('click', () => showGroupAssignmentModal(index));
+                }
+
+                return row;
+            }
+
+            function toggleGroupCollapse(groupId) {
+                const rows = document.querySelectorAll(`[data-group-id="${groupId}"].group-asset-row`);
+                const headerRow = document.querySelector(`[data-group-id="${groupId}"].group-header-row`);
+                const icon = headerRow ? headerRow.querySelector('.group-header-icon') : null;
+
+                rows.forEach(row => {
+                    row.classList.toggle('hidden');
+                });
+
+                if (icon) {
+                    icon.classList.toggle('collapsed');
+                }
             }
 
             function trackAssetChange(assetIndex) {
