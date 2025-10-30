@@ -1737,30 +1737,38 @@
                         // Check if CustomData already exists for this property
                         const existingData = existingCustomData.find(cd => cd.property && cd.property.id === propDef.id);
 
-                        const customDataEntity = {
-                            device: { id: deviceId },
-                            data: value !== null && value !== undefined ? value.toString() : '',
-                            property: { id: propDef.id }
-                        };
-
-                        // If it exists, include the ID for update
                         if (existingData) {
-                            customDataEntity.id = existingData.id;
+                            // Update existing CustomData
                             console.log(`Updating existing CustomData ID: ${existingData.id}`);
+                            await new Promise((resolve, reject) => {
+                                api.call('Set', {
+                                    typeName: 'CustomData',
+                                    entity: {
+                                        id: existingData.id,
+                                        device: { id: deviceId },
+                                        data: value !== null && value !== undefined ? value.toString() : '',
+                                        property: { id: propDef.id }
+                                    }
+                                }, resolve, reject);
+                            });
                         } else {
+                            // Add new CustomData
                             console.log(`Creating new CustomData`);
+                            await new Promise((resolve, reject) => {
+                                api.call('Add', {
+                                    typeName: 'CustomData',
+                                    entity: {
+                                        device: { id: deviceId },
+                                        data: value !== null && value !== undefined ? value.toString() : '',
+                                        property: { id: propDef.id }
+                                    }
+                                }, resolve, reject);
+                            });
                         }
-
-                        // Use CustomData entity to set the property value
-                        await new Promise((resolve, reject) => {
-                            api.call('Set', {
-                                typeName: 'CustomData',
-                                entity: customDataEntity
-                            }, resolve, reject);
-                        });
                         console.log(`Successfully set ${propertyName}`);
                     } catch (error) {
                         console.error(`Error setting ${propertyName}:`, error);
+                        console.error(`Error details:`, JSON.stringify(error, null, 2));
                         // Continue with other properties even if one fails
                     }
                 }
