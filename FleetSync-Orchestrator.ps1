@@ -578,41 +578,8 @@ IMPORTANT: Check the meeting status in your calendar:
 Always cancel bookings you no longer need so others can use the equipment.
 "@
 
-  # Booking rules (using custom property values)
-  try {
-    Set-CalendarProcessing -Identity $mbx.Identity `
-      -AutomateProcessing AutoAccept `
-      -AllBookInPolicy:$true `
-      -AllRequestInPolicy:$false `
-      -AllowConflicts:$allowConflictsBool `
-      -ConflictPercentageAllowed 0 `
-      -MaximumConflictInstances 0 `
-      -BookingWindowInDays $BookingWindowInDays `
-      -MaximumDurationInMinutes $MaximumDurationInMinutes `
-      -AllowRecurringMeetings:$allowRecurring `
-      -AddAdditionalResponse:$true `
-      -AdditionalResponse $responseMessage `
-      -DeleteComments:$false `
-      -DeleteSubject:$false `
-      -RemovePrivateProperty:$true `
-      -AddOrganizerToSubject:$true `
-      -EnforceCapacity:$true `
-      -EnforceSchedulingHorizon:$true `
-      -ScheduleOnlyDuringWorkHours:$scheduleOnly
-  } catch { Write-Warning "Could not apply booking defaults: $($_.Exception.Message)" }
-
-  # Apply approvers as ResourceDelegates and require approval if provided; clear when none
-  if ($delegates -and $delegates.Count -gt 0) {
-    try {
-      Set-CalendarProcessing -Identity $mbx.Identity -ResourceDelegates $delegates -AllRequestInPolicy:$true -AllBookInPolicy:$false
-    } catch { Write-Warning "Could not set ResourceDelegates for ${PrimarySmtpAddress}: $($_.Exception.Message)" }
-  } else {
-    try {
-      Set-CalendarProcessing -Identity $mbx.Identity -ResourceDelegates $null -AllRequestInPolicy:$false -AllBookInPolicy:$true
-    } catch { Write-Warning "Could not clear ResourceDelegates for ${PrimarySmtpAddress}: $($_.Exception.Message)" }
-  }
-
-  # Apply Bookable flag: disable booking when Off/False/0
+  # Check Bookable flag FIRST: disable booking when Off/False/0
+  $isBookable = $true  # Default to bookable if not specified
   if ($null -ne $Bookable) {
     $b = $Bookable
     if ($b -is [string]) {
@@ -620,11 +587,56 @@ Always cancel bookings you no longer need so others can use the equipment.
       if ($s -eq 'true' -or $s -eq 'on' -or $s -eq '1') { $b = $true }
       elseif ($s -eq 'false' -or $s -eq 'off' -or $s -eq '0') { $b = $false }
     }
-    if (-not $b) {
-      Write-Output "Bookable = Off: disabling booking for $PrimarySmtpAddress"
-      try { Set-CalendarProcessing -Identity $mbx.Identity -AutomateProcessing None -AllBookInPolicy:$false -AllRequestInPolicy:$false } catch { Write-Warning "Could not disable bookings: $($_.Exception.Message)" }
-      # Harden by blocking any future bookings
-      try { Set-CalendarProcessing -Identity $mbx.Identity -EnforceSchedulingHorizon:$true -BookingWindowInDays 0 } catch { Write-Warning "Could not enforce scheduling horizon: $($_.Exception.Message)" }
+    $isBookable = [bool]$b
+  }
+
+  if (-not $isBookable) {
+    # Asset is marked as NOT bookable - disable all booking functionality
+    Write-Output "Bookable = Off: disabling booking for $PrimarySmtpAddress"
+    try {
+      Set-CalendarProcessing -Identity $mbx.Identity `
+        -AutomateProcessing None `
+        -AllBookInPolicy:$false `
+        -AllRequestInPolicy:$false `
+        -EnforceSchedulingHorizon:$true `
+        -BookingWindowInDays 0
+    } catch { Write-Warning "Could not disable bookings: $($_.Exception.Message)" }
+  } else {
+    # Asset is bookable - apply normal booking rules
+    Write-Output "Bookable = On: enabling booking for $PrimarySmtpAddress"
+
+    # Booking rules (using custom property values)
+    try {
+      Set-CalendarProcessing -Identity $mbx.Identity `
+        -AutomateProcessing AutoAccept `
+        -AllBookInPolicy:$true `
+        -AllRequestInPolicy:$false `
+        -AllowConflicts:$allowConflictsBool `
+        -ConflictPercentageAllowed 0 `
+        -MaximumConflictInstances 0 `
+        -BookingWindowInDays $BookingWindowInDays `
+        -MaximumDurationInMinutes $MaximumDurationInMinutes `
+        -AllowRecurringMeetings:$allowRecurring `
+        -AddAdditionalResponse:$true `
+        -AdditionalResponse $responseMessage `
+        -DeleteComments:$false `
+        -DeleteSubject:$false `
+        -RemovePrivateProperty:$true `
+        -AddOrganizerToSubject:$true `
+        -EnforceCapacity:$true `
+        -EnforceSchedulingHorizon:$true `
+        -ScheduleOnlyDuringWorkHours:$scheduleOnly
+    } catch { Write-Warning "Could not apply booking defaults: $($_.Exception.Message)" }
+
+    # Apply approvers as ResourceDelegates and require approval if provided; clear when none
+    if ($delegates -and $delegates.Count -gt 0) {
+      try {
+        Set-CalendarProcessing -Identity $mbx.Identity -ResourceDelegates $delegates -AllRequestInPolicy:$true -AllBookInPolicy:$false
+      } catch { Write-Warning "Could not set ResourceDelegates for ${PrimarySmtpAddress}: $($_.Exception.Message)" }
+    } else {
+      try {
+        Set-CalendarProcessing -Identity $mbx.Identity -ResourceDelegates $null -AllRequestInPolicy:$false -AllBookInPolicy:$true
+      } catch { Write-Warning "Could not clear ResourceDelegates for ${PrimarySmtpAddress}: $($_.Exception.Message)" }
     }
   }
 
