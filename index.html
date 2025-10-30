@@ -1678,11 +1678,15 @@
                         }, resolve, reject);
                     });
                     console.log(`Found ${allProperties.length} total properties in system`);
+                    console.log('All property names from MyGeotab:', allProperties.map(p => p.name));
+                    console.log('Expected property names from REQUIRED_PROPERTIES:', REQUIRED_PROPERTIES.map(rp => rp.name));
 
                     // Filter to our FleetSync properties (match by name since internalName isn't returned)
-                    const fleetSyncProperties = allProperties.filter(p =>
-                        REQUIRED_PROPERTIES.some(rp => rp.name === p.name)
-                    );
+                    const fleetSyncProperties = allProperties.filter(p => {
+                        const match = REQUIRED_PROPERTIES.some(rp => rp.name === p.name);
+                        console.log(`Checking property "${p.name}": ${match ? 'MATCH' : 'no match'}`);
+                        return match;
+                    });
                     console.log(`Found ${fleetSyncProperties.length} FleetSync properties:`,
                         fleetSyncProperties.map(p => p.name));
 
