@@ -4,7 +4,7 @@
     "version": "1.0",
     "items": [
         {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/main/test-custom-properties.html",
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/433ec6e/test-custom-properties.html?v=1.1",
             "path": "ActivityLink/",
             "menuName": {
                 "en": "Custom Property Test"
