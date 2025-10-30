@@ -111,6 +111,49 @@ For example:
 
 ---
 
+## Understanding Response Emails
+
+All booking response emails include this important message:
+
+```
+IMPORTANT: Check the meeting status in your calendar:
+- ACCEPTED = Equipment is reserved for you
+- DECLINED = Equipment is NOT available - DELETE this calendar entry immediately
+- TENTATIVE = Awaiting approval from fleet manager
+
+Always cancel bookings you no longer need so others can use the equipment.
+```
+
+### Why the Same Message for All Responses?
+
+This is an **Exchange Online limitation** - the system cannot send different messages for accepted vs declined vs tentative bookings. The message reminds you to **check the status** in your calendar to know whether you have the equipment or not.
+
+### What Each Status Means:
+
+| Status | What It Means | What You Should Do |
+|--------|---------------|-------------------|
+| ✅ **ACCEPTED** | Equipment is reserved for you | Use the equipment as planned |
+| ❌ **DECLINED** | Equipment is NOT available | **DELETE the calendar entry immediately** and book a different time/equipment |
+| ⏳ **TENTATIVE** | Awaiting approval from fleet manager | Wait for approval - don't assume you have it yet |
+
+### Critical Warning About Declined Bookings
+
+⚠️ **DECLINED BOOKINGS STAY IN YOUR CALENDAR** ⚠️
+
+When a booking is declined, Exchange does NOT automatically remove it from your calendar. This is standard Exchange behaviour and cannot be changed.
+
+**You MUST manually delete declined bookings** to avoid confusion. If you don't delete them:
+- ❌ You might think you still have the equipment
+- ❌ You might show up expecting equipment that isn't available
+- ❌ Your calendar will show incorrect bookings
+
+**How to delete a declined booking:**
+1. Open the declined meeting in your calendar
+2. Click **Delete** (or press Delete key)
+3. Confirm deletion
+
+---
+
 ## Booking Rules and Limits
 
 Your organisation may have configured the following rules for equipment bookings:
