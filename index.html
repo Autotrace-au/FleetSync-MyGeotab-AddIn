@@ -1707,6 +1707,9 @@
                     device[internalName] = value;
                 }
 
+                // Log the device object to see what we're sending
+                console.log('Device object before Set:', JSON.stringify(device, null, 2));
+
                 // Save the device with updated properties
                 console.log('Calling Set on Device entity');
                 try {
@@ -1717,6 +1720,24 @@
                         }, resolve, reject);
                     });
                     console.log('Device updated successfully, result:', result);
+
+                    // Verify the properties were saved by fetching the device again
+                    console.log('Fetching device again to verify properties...');
+                    const verifyDevices = await new Promise((resolve, reject) => {
+                        api.call('Get', {
+                            typeName: 'Device',
+                            search: { id: deviceId }
+                        }, resolve, reject);
+                    });
+
+                    if (verifyDevices && verifyDevices.length > 0) {
+                        const verifiedDevice = verifyDevices[0];
+                        console.log('Verified device properties:');
+                        for (const [key, value] of Object.entries(properties)) {
+                            const internalName = propNameMap[key];
+                            console.log(`  ${internalName}: ${verifiedDevice[internalName]}`);
+                        }
+                    }
                 } catch (error) {
                     console.error('Error updating device:', error);
                     console.error('Error details:', JSON.stringify(error, null, 2));
