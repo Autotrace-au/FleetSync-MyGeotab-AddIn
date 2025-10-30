@@ -1668,101 +1668,65 @@
                 console.log('updateDeviceProperties called for device:', deviceId);
                 console.log('Properties to update:', properties);
 
-                // Get the current device with all properties
-                const devices = await new Promise((resolve, reject) => {
-                    api.call('Get', {
-                        typeName: 'Device',
-                        search: { id: deviceId }
-                    }, resolve, reject);
-                });
-
-                if (!devices || devices.length === 0) {
-                    throw new Error('Device not found');
-                }
-
-                const device = devices[0];
-                console.log('Device retrieved:', device.name);
-                console.log('Device object before update:', device);
-                console.log('Device keys:', Object.keys(device));
-                console.log('Checking for existing custom properties:');
-                console.log('  device.Bookable:', device.Bookable);
-                console.log('  device.AllowRecurringBooking:', device.AllowRecurringBooking);
-                console.log('  device.Approvers:', device.Approvers);
-
-                // Map our property keys to the internal names defined in REQUIRED_PROPERTIES
-                const propMap = {
-                    'bookable': 'Bookable',
-                    'recurring': 'AllowRecurringBooking',
-                    'approvers': 'Approvers',
-                    'fleetManagers': 'FleetManagers',
-                    'conflicts': 'AllowConflicts',
-                    'windowDays': 'BookingWindowInDays',
-                    'maxDurationHours': 'MaximumDurationInHours',
-                    'language': 'MailboxLanguage'
+                // Map our property keys to the property names
+                const propNameMap = {
+                    'bookable': 'Enable Equipment Booking',
+                    'recurring': 'Allow Recurring Bookings',
+                    'approvers': 'Booking Approvers',
+                    'fleetManagers': 'Fleet Managers',
+                    'conflicts': 'Allow Double Booking',
+                    'windowDays': 'Booking Window (Days)',
+                    'maxDurationHours': 'Maximum Booking Duration (Hours)',
+                    'language': 'Mailbox Language'
                 };
 
-                // Update each property on the device object
+                // Update each property using CustomData entity
                 for (const [key, value] of Object.entries(properties)) {
-                    const internalName = propMap[key];
-                    if (!internalName) {
+                    const propertyName = propNameMap[key];
+                    if (!propertyName) {
                         console.warn('Unknown property key:', key);
                         continue;
                     }
 
-                    // Set the property value directly on the device object
-                    // MyGeotab stores custom property values as direct fields using the internalName
-                    if (typeof value === 'boolean') {
-                        device[internalName] = value;
-                        console.log(`Set device.${internalName} = ${value} (boolean)`);
-                    } else if (typeof value === 'number') {
-                        device[internalName] = value;
-                        console.log(`Set device.${internalName} = ${value} (number)`);
-                    } else {
-                        device[internalName] = value ? value.toString() : '';
-                        console.log(`Set device.${internalName} = "${value}" (string)`);
+                    console.log(`Setting ${propertyName} = ${value}`);
+
+                    try {
+                        // Use CustomData entity to set the property value
+                        await new Promise((resolve, reject) => {
+                            api.call('Set', {
+                                typeName: 'CustomData',
+                                entity: {
+                                    device: { id: deviceId },
+                                    data: value,
+                                    customProperty: { name: propertyName }
+                                }
+                            }, resolve, reject);
+                        });
+                        console.log(`Successfully set ${propertyName}`);
+                    } catch (error) {
+                        console.error(`Error setting ${propertyName}:`, error);
+                        // Continue with other properties even if one fails
                     }
                 }
 
-                console.log('Device object after update:', device);
-                console.log('Device object after update - stringified:', JSON.stringify(device, null, 2));
-                console.log('Calling MyGeotab Set API to save device...');
 
-                // Save the updated device
+                console.log('All custom properties updated successfully');
+
+                // Verify the save by fetching CustomData
+                console.log('Verifying save by fetching CustomData...');
                 try {
-                    const result = await new Promise((resolve, reject) => {
-                        api.call('Set', {
-                            typeName: 'Device',
-                            entity: device
-                        }, (result) => {
-                            console.log('Set API success callback, result:', result);
-                            resolve(result);
-                        }, (error) => {
-                            console.error('Set API error callback, error:', error);
-                            reject(error);
-                        });
-                    });
-
-                    console.log('MyGeotab Set API result:', result);
-                    console.log('Device properties saved successfully');
-
-                    // Verify the save by re-fetching the device
-                    console.log('Verifying save by re-fetching device...');
-                    const verifyDevices = await new Promise((resolve, reject) => {
+                    const customData = await new Promise((resolve, reject) => {
                         api.call('Get', {
-                            typeName: 'Device',
-                            search: { id: deviceId }
+                            typeName: 'CustomData',
+                            search: {
+                                deviceSearch: { id: deviceId }
+                            }
                         }, resolve, reject);
                     });
 
-                    if (verifyDevices && verifyDevices.length > 0) {
-                        const verifiedDevice = verifyDevices[0];
-                        console.log('Verified device - Bookable:', verifiedDevice.Bookable);
-                        console.log('Verified device - AllowRecurringBooking:', verifiedDevice.AllowRecurringBooking);
-                        console.log('Verified device - Approvers:', verifiedDevice.Approvers);
-                    }
+                    console.log('CustomData for device:', customData);
                 } catch (error) {
-                    console.error('Error in Set API call:', error);
-                    throw error;
+                    console.error('Error fetching CustomData:', error);
                 }
             }
 
