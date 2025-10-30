@@ -1,0 +1,15 @@
+{
+    "name": "Custom Property Test Script",
+    "supportEmail": "sam@garageofawesome.com.au",
+    "version": "1.0",
+    "items": [
+        {
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/main/test-custom-properties.html",
+            "path": "ActivityLink/",
+            "menuName": {
+                "en": "Custom Property Test"
+            }
+        }
+    ]
+}
+

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyGeotab Custom Property Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .output {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        select, input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>MyGeotab Custom Property Test Script</h1>
+    <p>This script tests different methods of setting custom property values on devices.</p>
+
+    <div class="test-section">
+        <h3>Step 1: Select a Device</h3>
+        <select id="deviceSelect">
+            <option value="">Loading devices...</option>
+        </select>
+        <button onclick="loadDevices()">Refresh Devices</button>
+        <div id="deviceOutput" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: View Device Custom Properties</h3>
+        <button onclick="viewDeviceProperties()">View Device Properties</button>
+        <div id="propertiesOutput" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: View Existing CustomData</h3>
+        <button onclick="viewCustomData()">View CustomData</button>
+        <div id="customDataOutput" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 4: Test Setting Property - Method 1 (Add CustomData)</h3>
+        <p>Property: <strong>Enable Equipment Booking</strong></p>
+        <label>Value: <input type="checkbox" id="bookableValue1" checked> True</label>
+        <button onclick="testMethod1()">Test Add CustomData</button>
+        <div id="method1Output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 5: Test Setting Property - Method 2 (Set CustomData)</h3>
+        <p>Property: <strong>Enable Equipment Booking</strong></p>
+        <label>Value: <input type="checkbox" id="bookableValue2" checked> True</label>
+        <button onclick="testMethod2()">Test Set CustomData</button>
+        <div id="method2Output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 6: Test Setting Property - Method 3 (Set Device with property)</h3>
+        <p>Property: <strong>Enable Equipment Booking</strong></p>
+        <label>Value: <input type="checkbox" id="bookableValue3" checked> True</label>
+        <button onclick="testMethod3()">Test Set Device</button>
+        <div id="method3Output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 7: Verify Changes</h3>
+        <button onclick="verifyChanges()">Verify All Changes</button>
+        <div id="verifyOutput" class="output"></div>
+    </div>
+
+    <script>
+        let api;
+        let selectedDevice = null;
+        let customProperties = [];
+
+        // Initialize when loaded as MyGeotab Add-In
+        if (typeof geotab !== 'undefined') {
+            geotab.addin.fleetSyncTest = () => {
+                return {
+                    initialize: (freshApi, state, callback) => {
+                        api = freshApi;
+                        log('deviceOutput', 'API initialized successfully', 'success');
+                        loadDevices();
+                        callback();
+                    },
+                    focus: (freshApi, freshState) => {
+                        api = freshApi;
+                    },
+                    blur: (freshApi, freshState) => {
+                        api = freshApi;
+                    }
+                };
+            };
+        }
+
+        function log(outputId, message, type = 'info') {
+            const output = document.getElementById(outputId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+            console.log(`[${outputId}]`, message);
+        }
+
+        function clearLog(outputId) {
+            document.getElementById(outputId).innerHTML = '';
+        }
+
+        async function loadDevices() {
+            clearLog('deviceOutput');
+            log('deviceOutput', 'Loading devices...');
+            
+            try {
+                const devices = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'Device',
+                        resultsLimit: 100
+                    }, resolve, reject);
+                });
+
+                log('deviceOutput', `Loaded ${devices.length} devices`, 'success');
+                
+                const select = document.getElementById('deviceSelect');
+                select.innerHTML = '<option value="">Select a device...</option>';
+                
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.id;
+                    option.textContent = `${device.name} (${device.serialNumber})`;
+                    option.dataset.device = JSON.stringify(device);
+                    select.appendChild(option);
+                });
+
+                select.onchange = function() {
+                    if (this.value) {
+                        selectedDevice = JSON.parse(this.options[this.selectedIndex].dataset.device);
+                        log('deviceOutput', `Selected: ${selectedDevice.name}`, 'success');
+                    }
+                };
+
+            } catch (error) {
+                log('deviceOutput', `Error loading devices: ${error.message}`, 'error');
+                log('deviceOutput', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function viewDeviceProperties() {
+            clearLog('propertiesOutput');
+            
+            if (!selectedDevice) {
+                log('propertiesOutput', 'Please select a device first', 'error');
+                return;
+            }
+
+            log('propertiesOutput', `Viewing properties for: ${selectedDevice.name}`);
+            
+            try {
+                // Re-fetch device to get latest data
+                const devices = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'Device',
+                        search: { id: selectedDevice.id }
+                    }, resolve, reject);
+                });
+
+                if (devices && devices.length > 0) {
+                    const device = devices[0];
+                    selectedDevice = device; // Update selected device
+                    
+                    log('propertiesOutput', `Device ID: ${device.id}`);
+                    log('propertiesOutput', `Device Name: ${device.name}`);
+                    log('propertiesOutput', '');
+                    
+                    customProperties = device.customProperties || [];
+                    log('propertiesOutput', `Custom Properties Defined: ${customProperties.length}`);
+                    
+                    customProperties.forEach((cp, index) => {
+                        if (cp.property) {
+                            log('propertiesOutput', `\n[${index + 1}] ${cp.property.name}`);
+                            log('propertiesOutput', `    ID: ${cp.property.id}`);
+                            log('propertiesOutput', `    Type: ${cp.property.propertyType}`);
+                        }
+                    });
+                    
+                    log('propertiesOutput', '\n--- Full Device Object ---');
+                    log('propertiesOutput', JSON.stringify(device, null, 2));
+                    
+                } else {
+                    log('propertiesOutput', 'Device not found', 'error');
+                }
+            } catch (error) {
+                log('propertiesOutput', `Error: ${error.message}`, 'error');
+                log('propertiesOutput', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function viewCustomData() {
+            clearLog('customDataOutput');
+            
+            if (!selectedDevice) {
+                log('customDataOutput', 'Please select a device first', 'error');
+                return;
+            }
+
+            log('customDataOutput', `Fetching CustomData for: ${selectedDevice.name}`);
+            
+            try {
+                const customData = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'CustomData',
+                        search: {
+                            deviceSearch: { id: selectedDevice.id }
+                        }
+                    }, resolve, reject);
+                });
+
+                log('customDataOutput', `Found ${customData.length} CustomData entries`, 'success');
+                
+                customData.forEach((cd, index) => {
+                    log('customDataOutput', `\n[${index + 1}] CustomData ID: ${cd.id}`);
+                    if (cd.property) {
+                        log('customDataOutput', `    Property: ${cd.property.name} (${cd.property.id})`);
+                    }
+                    log('customDataOutput', `    Data: ${cd.data}`);
+                });
+                
+                if (customData.length === 0) {
+                    log('customDataOutput', '\nNo CustomData found for this device');
+                }
+                
+                log('customDataOutput', '\n--- Full CustomData Array ---');
+                log('customDataOutput', JSON.stringify(customData, null, 2));
+                
+            } catch (error) {
+                log('customDataOutput', `Error: ${error.message}`, 'error');
+                log('customDataOutput', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function testMethod1() {
+            clearLog('method1Output');
+            
+            if (!selectedDevice) {
+                log('method1Output', 'Please select a device first', 'error');
+                return;
+            }
+
+            const value = document.getElementById('bookableValue1').checked;
+            log('method1Output', `Testing Add CustomData method`);
+            log('method1Output', `Device: ${selectedDevice.name}`);
+            log('method1Output', `Value: ${value}`);
+            
+            // Find the "Enable Equipment Booking" property
+            const bookableProp = customProperties.find(cp => 
+                cp.property && cp.property.name === 'Enable Equipment Booking'
+            );
+            
+            if (!bookableProp) {
+                log('method1Output', 'Property "Enable Equipment Booking" not found on device', 'error');
+                return;
+            }
+            
+            log('method1Output', `Property ID: ${bookableProp.property.id}`);
+            
+            try {
+                const entity = {
+                    device: { id: selectedDevice.id },
+                    data: value.toString(),
+                    property: { id: bookableProp.property.id }
+                };
+                
+                log('method1Output', '\nCalling Add with entity:');
+                log('method1Output', JSON.stringify(entity, null, 2));
+                
+                const result = await new Promise((resolve, reject) => {
+                    api.call('Add', {
+                        typeName: 'CustomData',
+                        entity: entity
+                    }, resolve, reject);
+                });
+                
+                log('method1Output', '\nSuccess!', 'success');
+                log('method1Output', `Result: ${result}`);
+                
+            } catch (error) {
+                log('method1Output', `\nError: ${error.message}`, 'error');
+                log('method1Output', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function testMethod2() {
+            clearLog('method2Output');
+            
+            if (!selectedDevice) {
+                log('method2Output', 'Please select a device first', 'error');
+                return;
+            }
+
+            const value = document.getElementById('bookableValue2').checked;
+            log('method2Output', `Testing Set CustomData method`);
+            log('method2Output', `Device: ${selectedDevice.name}`);
+            log('method2Output', `Value: ${value}`);
+            
+            // First, get existing CustomData
+            try {
+                const customData = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'CustomData',
+                        search: {
+                            deviceSearch: { id: selectedDevice.id }
+                        }
+                    }, resolve, reject);
+                });
+                
+                const bookableProp = customProperties.find(cp => 
+                    cp.property && cp.property.name === 'Enable Equipment Booking'
+                );
+                
+                if (!bookableProp) {
+                    log('method2Output', 'Property "Enable Equipment Booking" not found on device', 'error');
+                    return;
+                }
+                
+                const existingData = customData.find(cd => 
+                    cd.property && cd.property.id === bookableProp.property.id
+                );
+                
+                if (!existingData) {
+                    log('method2Output', 'No existing CustomData found. Use Method 1 (Add) first.', 'error');
+                    return;
+                }
+                
+                log('method2Output', `Found existing CustomData ID: ${existingData.id}`);
+                
+                const entity = {
+                    id: existingData.id,
+                    device: { id: selectedDevice.id },
+                    data: value.toString(),
+                    property: { id: bookableProp.property.id }
+                };
+                
+                log('method2Output', '\nCalling Set with entity:');
+                log('method2Output', JSON.stringify(entity, null, 2));
+                
+                const result = await new Promise((resolve, reject) => {
+                    api.call('Set', {
+                        typeName: 'CustomData',
+                        entity: entity
+                    }, resolve, reject);
+                });
+                
+                log('method2Output', '\nSuccess!', 'success');
+                log('method2Output', `Result: ${result}`);
+                
+            } catch (error) {
+                log('method2Output', `\nError: ${error.message}`, 'error');
+                log('method2Output', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function testMethod3() {
+            clearLog('method3Output');
+            
+            if (!selectedDevice) {
+                log('method3Output', 'Please select a device first', 'error');
+                return;
+            }
+
+            const value = document.getElementById('bookableValue3').checked;
+            log('method3Output', `Testing Set Device method`);
+            log('method3Output', `Device: ${selectedDevice.name}`);
+            log('method3Output', `Value: ${value}`);
+            
+            try {
+                // Get fresh device data
+                const devices = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'Device',
+                        search: { id: selectedDevice.id }
+                    }, resolve, reject);
+                });
+                
+                const device = devices[0];
+                
+                // Set the property directly on the device object
+                device.Bookable = value;
+                
+                log('method3Output', '\nCalling Set with device entity:');
+                log('method3Output', `device.Bookable = ${value}`);
+                
+                const result = await new Promise((resolve, reject) => {
+                    api.call('Set', {
+                        typeName: 'Device',
+                        entity: device
+                    }, resolve, reject);
+                });
+                
+                log('method3Output', '\nSuccess!', 'success');
+                log('method3Output', `Result: ${result}`);
+                
+            } catch (error) {
+                log('method3Output', `\nError: ${error.message}`, 'error');
+                log('method3Output', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        async function verifyChanges() {
+            clearLog('verifyOutput');
+            
+            if (!selectedDevice) {
+                log('verifyOutput', 'Please select a device first', 'error');
+                return;
+            }
+
+            log('verifyOutput', `Verifying changes for: ${selectedDevice.name}`);
+            
+            try {
+                // Get device
+                const devices = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'Device',
+                        search: { id: selectedDevice.id }
+                    }, resolve, reject);
+                });
+                
+                const device = devices[0];
+                
+                log('verifyOutput', '\n--- Device Properties ---');
+                log('verifyOutput', `device.Bookable: ${device.Bookable}`);
+                log('verifyOutput', `device.AllowRecurringBooking: ${device.AllowRecurringBooking}`);
+                log('verifyOutput', `device.Approvers: ${device.Approvers}`);
+                
+                // Get CustomData
+                const customData = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'CustomData',
+                        search: {
+                            deviceSearch: { id: selectedDevice.id }
+                        }
+                    }, resolve, reject);
+                });
+                
+                log('verifyOutput', '\n--- CustomData Entries ---');
+                customData.forEach((cd, index) => {
+                    if (cd.property) {
+                        log('verifyOutput', `${cd.property.name}: ${cd.data}`);
+                    }
+                });
+                
+                log('verifyOutput', '\nVerification complete', 'success');
+                
+            } catch (error) {
+                log('verifyOutput', `Error: ${error.message}`, 'error');
+                log('verifyOutput', JSON.stringify(error, null, 2), 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+
