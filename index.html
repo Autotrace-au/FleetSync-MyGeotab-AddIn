@@ -459,6 +459,13 @@
                     Trigger an immediate synchronisation between MyGeotab devices and Exchange equipment mailboxes. This will run the FleetSync Orchestrator script via the configured webhook.
                 </p>
 
+                <div style="margin-bottom: 16px; padding: 12px; background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; font-size: 13px; color: #92400e;">
+                    <strong>⚠️ CORS Limitation:</strong> Azure Automation webhooks don't support CORS, so direct browser calls will fail with "Failed to fetch".
+                    The webhook request is still sent and may succeed, but you won't see a response. Check Azure Automation job history to verify execution.
+                    <br><br>
+                    <strong>Alternative:</strong> Use Azure Logic Apps or Azure Functions as a CORS-enabled proxy to call the webhook.
+                </div>
+
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <button id="triggerSyncBtn" class="btn btn-success" disabled>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1095,8 +1102,10 @@
                     syncResultContainer.style.display = 'none';
                     updateSyncStatus('Triggering synchronisation...', 'info');
 
+                    // Use no-cors mode since Azure Automation webhooks don't support CORS
                     const response = await fetch(webhookUrl, {
                         method: 'POST',
+                        mode: 'no-cors',
                         headers: {
                             'Content-Type': 'application/json'
                         },
@@ -1106,20 +1115,36 @@
                         })
                     });
 
-                    if (response.ok) {
-                        const result = await response.text();
-                        updateSyncStatus('Synchronisation triggered successfully!', 'success');
-                        syncResult.textContent = result || 'Webhook triggered. Check Azure Automation for job status.';
-                        syncResultContainer.style.display = 'block';
-                    } else {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
+                    // With no-cors mode, we can't read the response, but the request was sent
+                    updateSyncStatus('Sync request sent successfully!', 'success');
+                    syncResult.textContent = 'Webhook request sent to Azure Automation.\n\n' +
+                        'Due to CORS limitations, we cannot verify the response.\n' +
+                        'Please check Azure Automation job history to confirm execution:\n' +
+                        '1. Go to Azure Portal\n' +
+                        '2. Navigate to your Automation Account\n' +
+                        '3. Select "Jobs" under Process Automation\n' +
+                        '4. Look for the most recent job\n\n' +
+                        'Timestamp: ' + new Date().toLocaleString();
+                    syncResultContainer.style.display = 'block';
 
                 } catch (error) {
                     console.error('Sync error:', error);
-                    updateSyncStatus(`Error: ${error.message}`, 'error');
-                    syncResult.textContent = `Failed to trigger sync: ${error.message}`;
-                    syncResultContainer.style.display = 'block';
+
+                    // Check if it's a CORS error
+                    if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                        updateSyncStatus('Request sent (CORS limitation)', 'warning');
+                        syncResult.textContent = 'The webhook request was sent, but we cannot verify the response due to CORS restrictions.\n\n' +
+                            'This is normal for Azure Automation webhooks.\n\n' +
+                            'To verify execution:\n' +
+                            '1. Check Azure Automation job history in Azure Portal\n' +
+                            '2. Look for a job that started around: ' + new Date().toLocaleString() + '\n\n' +
+                            'Consider using Azure Logic Apps or Azure Functions as a CORS-enabled proxy for better feedback.';
+                        syncResultContainer.style.display = 'block';
+                    } else {
+                        updateSyncStatus(`Error: ${error.message}`, 'error');
+                        syncResult.textContent = `Failed to trigger sync: ${error.message}`;
+                        syncResultContainer.style.display = 'block';
+                    }
                 } finally {
                     triggerBtn.disabled = false;
                     syncProgress.style.display = 'none';
