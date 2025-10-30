@@ -700,7 +700,7 @@
                     loadBtn.innerHTML = '<span class="loading-spinner"></span> Loading...';
                     updateAssetStatus('Loading assets from MyGeotab...', 'info');
 
-                    // Get all devices
+                    // Get all devices with their custom properties
                     const devices = await new Promise((resolve, reject) => {
                         api.call('Get', {
                             typeName: 'Device',
@@ -708,22 +708,13 @@
                         }, resolve, reject);
                     });
 
-                    // Get all custom properties for these devices
-                    const deviceIds = devices.map(d => ({ id: d.id }));
-                    const customProperties = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'CustomProperty',
-                            search: { devices: deviceIds }
-                        }, resolve, reject);
-                    });
-
                     allAssets = devices.map(device => {
-                        const deviceProps = customProperties.filter(cp => cp.device && cp.device.id === device.id);
                         return {
                             id: device.id,
                             name: device.name,
                             serialNumber: device.serialNumber,
-                            properties: getDeviceProperties(deviceProps)
+                            device: device,  // Store full device object
+                            properties: getDeviceProperties(device)
                         };
                     });
 
@@ -741,7 +732,7 @@
                 }
             }
 
-            function getDeviceProperties(customProps) {
+            function getDeviceProperties(device) {
                 const props = {
                     bookable: false,
                     recurring: false,
@@ -753,26 +744,31 @@
                     language: 'en-AU'
                 };
 
-                customProps.forEach(cp => {
-                    const propName = cp.property?.name?.toLowerCase() || '';
-                    if (propName.includes('bookable') || propName.includes('enable equipment booking')) {
-                        props.bookable = cp.value === 'true' || cp.value === true;
-                    } else if (propName.includes('recurring')) {
-                        props.recurring = cp.value === 'true' || cp.value === true;
-                    } else if (propName.includes('approver')) {
-                        props.approvers = cp.value || '';
-                    } else if (propName.includes('fleet manager')) {
-                        props.fleetManagers = cp.value || '';
-                    } else if (propName.includes('conflict') || propName.includes('double booking')) {
-                        props.conflicts = cp.value === 'true' || cp.value === true;
-                    } else if (propName.includes('booking window')) {
-                        props.windowDays = parseInt(cp.value) || 90;
-                    } else if (propName.includes('maximum') && propName.includes('duration')) {
-                        props.maxDurationHours = parseInt(cp.value) || 24;
-                    } else if (propName.includes('language')) {
-                        props.language = cp.value || 'en-AU';
-                    }
-                });
+                // Custom properties are stored directly on the device object
+                // Look for properties by their internal names
+                if (device.bookable !== undefined) props.bookable = device.bookable === true || device.bookable === 'true';
+                if (device.Bookable !== undefined) props.bookable = device.Bookable === true || device.Bookable === 'true';
+
+                if (device.allowRecurringBooking !== undefined) props.recurring = device.allowRecurringBooking === true || device.allowRecurringBooking === 'true';
+                if (device.AllowRecurringBooking !== undefined) props.recurring = device.AllowRecurringBooking === true || device.AllowRecurringBooking === 'true';
+
+                if (device.approvers !== undefined) props.approvers = device.approvers || '';
+                if (device.Approvers !== undefined) props.approvers = device.Approvers || '';
+
+                if (device.fleetManagers !== undefined) props.fleetManagers = device.fleetManagers || '';
+                if (device.FleetManagers !== undefined) props.fleetManagers = device.FleetManagers || '';
+
+                if (device.allowConflicts !== undefined) props.conflicts = device.allowConflicts === true || device.allowConflicts === 'true';
+                if (device.AllowConflicts !== undefined) props.conflicts = device.AllowConflicts === true || device.AllowConflicts === 'true';
+
+                if (device.bookingWindowInDays !== undefined) props.windowDays = parseInt(device.bookingWindowInDays) || 90;
+                if (device.BookingWindowInDays !== undefined) props.windowDays = parseInt(device.BookingWindowInDays) || 90;
+
+                if (device.maximumDurationInHours !== undefined) props.maxDurationHours = parseInt(device.maximumDurationInHours) || 24;
+                if (device.MaximumDurationInHours !== undefined) props.maxDurationHours = parseInt(device.MaximumDurationInHours) || 24;
+
+                if (device.mailboxLanguage !== undefined) props.language = device.mailboxLanguage || 'en-AU';
+                if (device.MailboxLanguage !== undefined) props.language = device.MailboxLanguage || 'en-AU';
 
                 return props;
             }
@@ -904,23 +900,21 @@
             }
 
             async function updateDeviceProperties(deviceId, properties) {
-                // Get property definitions
-                const propertyDefs = await new Promise((resolve, reject) => {
+                // Get the current device
+                const devices = await new Promise((resolve, reject) => {
                     api.call('Get', {
-                        typeName: 'Property',
-                        search: { propertySet: { id: 'FleetSyncPropertiesId' } }
+                        typeName: 'Device',
+                        search: { id: deviceId }
                     }, resolve, reject);
                 });
 
-                // Get existing custom properties for this device
-                const existingProps = await new Promise((resolve, reject) => {
-                    api.call('Get', {
-                        typeName: 'CustomProperty',
-                        search: { device: { id: deviceId } }
-                    }, resolve, reject);
-                });
+                if (!devices || devices.length === 0) {
+                    throw new Error('Device not found');
+                }
 
-                // Map property names to IDs
+                const device = devices[0];
+
+                // Map property names to device field names (case-sensitive)
                 const propMap = {
                     'bookable': 'Bookable',
                     'recurring': 'AllowRecurringBooking',
@@ -932,45 +926,28 @@
                     'language': 'MailboxLanguage'
                 };
 
-                // Update or create each property
+                // Update device properties
                 for (const [key, value] of Object.entries(properties)) {
-                    const propInternalName = propMap[key];
-                    if (!propInternalName) continue;
+                    const deviceFieldName = propMap[key];
+                    if (!deviceFieldName) continue;
 
-                    const propDef = propertyDefs.find(p => p.name.includes(propInternalName) || p.name.toLowerCase().includes(key));
-                    if (!propDef) continue;
-
-                    const existingProp = existingProps.find(ep => ep.property && ep.property.id === propDef.id);
-
-                    const propValue = typeof value === 'boolean' ? value.toString() : value.toString();
-
-                    if (existingProp) {
-                        // Update existing
-                        await new Promise((resolve, reject) => {
-                            api.call('Set', {
-                                typeName: 'CustomProperty',
-                                entity: {
-                                    id: existingProp.id,
-                                    device: { id: deviceId },
-                                    property: { id: propDef.id },
-                                    value: propValue
-                                }
-                            }, resolve, reject);
-                        });
+                    // Set the property value on the device object
+                    if (typeof value === 'boolean') {
+                        device[deviceFieldName] = value;
+                    } else if (typeof value === 'number') {
+                        device[deviceFieldName] = value;
                     } else {
-                        // Create new
-                        await new Promise((resolve, reject) => {
-                            api.call('Add', {
-                                typeName: 'CustomProperty',
-                                entity: {
-                                    device: { id: deviceId },
-                                    property: { id: propDef.id },
-                                    value: propValue
-                                }
-                            }, resolve, reject);
-                        });
+                        device[deviceFieldName] = value.toString();
                     }
                 }
+
+                // Save the updated device
+                await new Promise((resolve, reject) => {
+                    api.call('Set', {
+                        typeName: 'Device',
+                        entity: device
+                    }, resolve, reject);
+                });
             }
 
             return {
