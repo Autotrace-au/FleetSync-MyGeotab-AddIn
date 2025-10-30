@@ -1791,12 +1791,22 @@
 
                     // Step 6: Save the device - send only required fields to avoid JsonSerializerException
                     console.log('\nStep 5: Calling Set on Device entity...');
-                    console.log('Creating minimal device object with only id and customProperties...');
+                    console.log('Simplifying customProperties to only include property ID and value...');
+
+                    // Simplify customProperties - only include property.id and value
+                    const simplifiedCustomProperties = device.customProperties.map(pv => ({
+                        property: {
+                            id: pv.property.id
+                        },
+                        value: pv.value
+                    }));
+
+                    console.log('Simplified customProperties:', JSON.stringify(simplifiedCustomProperties, null, 2));
 
                     // Create a minimal device object with only the required fields
                     const minimalDevice = {
                         id: device.id,
-                        customProperties: device.customProperties
+                        customProperties: simplifiedCustomProperties
                     };
 
                     console.log('Minimal device object:', JSON.stringify(minimalDevice, null, 2));
