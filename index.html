@@ -1668,7 +1668,7 @@
                 console.log('updateDeviceProperties called for device:', deviceId);
                 console.log('Properties to update:', properties);
 
-                // Get the current device
+                // Get the current device with all properties
                 const devices = await new Promise((resolve, reject) => {
                     api.call('Get', {
                         typeName: 'Device',
@@ -1682,8 +1682,9 @@
 
                 const device = devices[0];
                 console.log('Device retrieved:', device.name);
+                console.log('Device object before update:', device);
 
-                // Map property names to device field names (case-sensitive)
+                // Map our property keys to the internal names defined in REQUIRED_PROPERTIES
                 const propMap = {
                     'bookable': 'Bookable',
                     'recurring': 'AllowRecurringBooking',
@@ -1695,36 +1696,41 @@
                     'language': 'MailboxLanguage'
                 };
 
-                // Update device properties
+                // Update each property on the device object
                 for (const [key, value] of Object.entries(properties)) {
-                    const deviceFieldName = propMap[key];
-                    if (!deviceFieldName) {
+                    const internalName = propMap[key];
+                    if (!internalName) {
                         console.warn('Unknown property key:', key);
                         continue;
                     }
 
-                    // Set the property value on the device object
+                    // Set the property value directly on the device object
+                    // MyGeotab stores custom property values as direct fields using the internalName
                     if (typeof value === 'boolean') {
-                        device[deviceFieldName] = value;
-                        console.log(`Set ${deviceFieldName} = ${value} (boolean)`);
+                        device[internalName] = value;
+                        console.log(`Set device.${internalName} = ${value} (boolean)`);
                     } else if (typeof value === 'number') {
-                        device[deviceFieldName] = value;
-                        console.log(`Set ${deviceFieldName} = ${value} (number)`);
+                        device[internalName] = value;
+                        console.log(`Set device.${internalName} = ${value} (number)`);
                     } else {
-                        device[deviceFieldName] = value.toString();
-                        console.log(`Set ${deviceFieldName} = ${value} (string)`);
+                        device[internalName] = value ? value.toString() : '';
+                        console.log(`Set device.${internalName} = "${value}" (string)`);
                     }
                 }
 
-                console.log('Calling MyGeotab Set API...');
+                console.log('Device object after update:', device);
+                console.log('Calling MyGeotab Set API to save device...');
+
                 // Save the updated device
-                await new Promise((resolve, reject) => {
+                const result = await new Promise((resolve, reject) => {
                     api.call('Set', {
                         typeName: 'Device',
                         entity: device
                     }, resolve, reject);
                 });
-                console.log('MyGeotab Set API call completed successfully');
+
+                console.log('MyGeotab Set API result:', result);
+                console.log('Device properties saved successfully');
             }
 
             // Webhook URL management functions
