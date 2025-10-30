@@ -1237,6 +1237,7 @@
 
             // Assign asset to group
             async function assignAssetToGroup() {
+                console.log('assignAssetToGroup called');
                 const selectGroup = document.getElementById('selectGroup');
                 const groupId = selectGroup.value;
 
@@ -1252,14 +1253,23 @@
                 }
 
                 const asset = allAssets[currentAssignAssetIndex];
-                if (!asset) return;
+                if (!asset) {
+                    console.error('Asset not found at index:', currentAssignAssetIndex);
+                    return;
+                }
+
+                console.log('Assigning asset to group:', asset.name, 'Group:', group.name);
+                console.log('Group properties:', group.properties);
 
                 try {
                     // Copy group properties to asset
                     const updates = { ...group.properties };
+                    console.log('Updates to apply:', updates);
 
                     // Update properties in MyGeotab
+                    updateAssetStatus(`Updating "${asset.name}" with group properties...`, 'info');
                     await updateDeviceProperties(asset.id, updates);
+                    console.log('Device properties updated successfully');
 
                     // Update local data
                     asset.properties = updates;
@@ -1277,6 +1287,7 @@
                 } catch (error) {
                     console.error('Error assigning asset to group:', error);
                     updateAssetStatus(`Error assigning asset to group: ${error.message}`, 'error');
+                    alert(`Error: ${error.message}`);
                 }
             }
 
@@ -1654,6 +1665,9 @@
             }
 
             async function updateDeviceProperties(deviceId, properties) {
+                console.log('updateDeviceProperties called for device:', deviceId);
+                console.log('Properties to update:', properties);
+
                 // Get the current device
                 const devices = await new Promise((resolve, reject) => {
                     api.call('Get', {
@@ -1667,6 +1681,7 @@
                 }
 
                 const device = devices[0];
+                console.log('Device retrieved:', device.name);
 
                 // Map property names to device field names (case-sensitive)
                 const propMap = {
@@ -1683,18 +1698,25 @@
                 // Update device properties
                 for (const [key, value] of Object.entries(properties)) {
                     const deviceFieldName = propMap[key];
-                    if (!deviceFieldName) continue;
+                    if (!deviceFieldName) {
+                        console.warn('Unknown property key:', key);
+                        continue;
+                    }
 
                     // Set the property value on the device object
                     if (typeof value === 'boolean') {
                         device[deviceFieldName] = value;
+                        console.log(`Set ${deviceFieldName} = ${value} (boolean)`);
                     } else if (typeof value === 'number') {
                         device[deviceFieldName] = value;
+                        console.log(`Set ${deviceFieldName} = ${value} (number)`);
                     } else {
                         device[deviceFieldName] = value.toString();
+                        console.log(`Set ${deviceFieldName} = ${value} (string)`);
                     }
                 }
 
+                console.log('Calling MyGeotab Set API...');
                 // Save the updated device
                 await new Promise((resolve, reject) => {
                     api.call('Set', {
@@ -1702,6 +1724,7 @@
                         entity: device
                     }, resolve, reject);
                 });
+                console.log('MyGeotab Set API call completed successfully');
             }
 
             // Webhook URL management functions
