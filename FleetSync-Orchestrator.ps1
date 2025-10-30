@@ -403,11 +403,18 @@ function Get-GeotabDevices {
     $book  = $bookFromCP
     if ($null -eq $book) { $book  = Get-IfPresent -Obj $_ -Names @('bookable','isBookable') }
 
+    # DEBUG: Log the raw value retrieved
+    $bookType = if ($null -ne $book) { $book.GetType().Name } else { 'null' }
+    Write-Output "DEBUG: Device '$($_.name)' - Raw Bookable value: '$book' (Type: $bookType)"
+
     # Normalise Bookable to Boolean
     if ($null -ne $book) {
       if ($book -is [bool]) { $book = [bool]$book }
       elseif ($book -is [int]) { $book = ($book -ne 0) }
       else { $s=[string]$book; $s=$s.Trim().ToLowerInvariant(); $book = ($s -in @('true','1','on','yes','y')) }
+      Write-Output "DEBUG: Device '$($_.name)' - Normalised Bookable value: $book"
+    } else {
+      Write-Output "DEBUG: Device '$($_.name)' - Bookable value is NULL (will default to TRUE)"
     }
 
     # Normalise Recurring to Boolean
