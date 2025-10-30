@@ -1747,7 +1747,8 @@
                                         id: existingData.id,
                                         device: { id: deviceId },
                                         data: value !== null && value !== undefined ? value.toString() : '',
-                                        property: { id: propDef.id }
+                                        property: { id: propDef.id },
+                                        dateTime: new Date().toISOString()
                                     }
                                 }, resolve, reject);
                             });
@@ -1760,7 +1761,8 @@
                                     entity: {
                                         device: { id: deviceId },
                                         data: value !== null && value !== undefined ? value.toString() : '',
-                                        property: { id: propDef.id }
+                                        property: { id: propDef.id },
+                                        dateTime: new Date().toISOString()
                                     }
                                 }, resolve, reject);
                             });
