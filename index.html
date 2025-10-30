@@ -1668,7 +1668,7 @@
                 console.log('updateDeviceProperties called for device:', deviceId);
                 console.log('Properties to update:', properties);
 
-                // Get the device with its custom properties
+                // Get the device
                 const devices = await new Promise((resolve, reject) => {
                     api.call('Get', {
                         typeName: 'Device',
@@ -1683,101 +1683,44 @@
                 const device = devices[0];
                 console.log('Device retrieved:', device.name);
 
-                // Get custom property definitions from the device
-                const customProperties = device.customProperties || [];
-                console.log('Device has', customProperties.length, 'custom properties defined');
-
-                // Map our property keys to the property names
+                // Map our property keys to the internal property names used by MyGeotab
                 const propNameMap = {
-                    'bookable': 'Enable Equipment Booking',
-                    'recurring': 'Allow Recurring Bookings',
-                    'approvers': 'Booking Approvers',
-                    'fleetManagers': 'Fleet Managers',
-                    'conflicts': 'Allow Double Booking',
-                    'windowDays': 'Booking Window (Days)',
-                    'maxDurationHours': 'Maximum Booking Duration (Hours)',
-                    'language': 'Mailbox Language'
+                    'bookable': 'Bookable',
+                    'recurring': 'AllowRecurringBooking',
+                    'approvers': 'Approvers',
+                    'fleetManagers': 'FleetManagers',
+                    'conflicts': 'AllowConflicts',
+                    'windowDays': 'BookingWindowInDays',
+                    'maxDurationHours': 'MaximumDurationInHours',
+                    'language': 'MailboxLanguage'
                 };
 
-                // Get existing CustomData for this device
-                let existingCustomData = [];
-                try {
-                    existingCustomData = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'CustomData',
-                            search: {
-                                deviceSearch: { id: deviceId }
-                            }
-                        }, resolve, reject);
-                    });
-                    console.log('Existing CustomData count:', existingCustomData.length);
-                    existingCustomData.forEach(cd => {
-                        console.log(`  - Property ID: ${cd.property?.id}, Data: ${cd.data}, CustomData ID: ${cd.id}`);
-                    });
-                } catch (error) {
-                    console.error('Error fetching existing CustomData:', error);
-                }
-
-                // Update each property using CustomData entity
+                // Set properties directly on the device object
                 for (const [key, value] of Object.entries(properties)) {
-                    const propertyName = propNameMap[key];
-                    if (!propertyName) {
+                    const internalName = propNameMap[key];
+                    if (!internalName) {
                         console.warn('Unknown property key:', key);
                         continue;
                     }
 
-                    // Find the property definition from the device's customProperties array
-                    const customProp = customProperties.find(cp => cp.property && cp.property.name === propertyName);
-                    if (!customProp || !customProp.property) {
-                        console.warn('Property definition not found on device:', propertyName);
-                        continue;
-                    }
+                    console.log(`Setting device.${internalName} = ${value}`);
+                    device[internalName] = value;
+                }
 
-                    const propDef = customProp.property;
-                    console.log(`Setting ${propertyName} = ${value} (property ID: ${propDef.id})`);
-
-                    try {
-                        // Check if CustomData already exists for this property
-                        const existingData = existingCustomData.find(cd => cd.property && cd.property.id === propDef.id);
-
-                        if (existingData) {
-                            // Update existing CustomData
-                            console.log(`Updating existing CustomData ID: ${existingData.id} for ${propertyName}`);
-                            const result = await new Promise((resolve, reject) => {
-                                api.call('Set', {
-                                    typeName: 'CustomData',
-                                    entity: {
-                                        id: existingData.id,
-                                        device: { id: deviceId },
-                                        data: value !== null && value !== undefined ? value.toString() : '',
-                                        property: { id: propDef.id },
-                                        dateTime: new Date().toISOString()
-                                    }
-                                }, resolve, reject);
-                            });
-                            console.log(`Set result:`, result);
-                        } else {
-                            // Add new CustomData
-                            console.log(`Creating new CustomData for ${propertyName}`);
-                            const result = await new Promise((resolve, reject) => {
-                                api.call('Add', {
-                                    typeName: 'CustomData',
-                                    entity: {
-                                        device: { id: deviceId },
-                                        data: value !== null && value !== undefined ? value.toString() : '',
-                                        property: { id: propDef.id },
-                                        dateTime: new Date().toISOString()
-                                    }
-                                }, resolve, reject);
-                            });
-                            console.log(`Add result:`, result);
-                        }
-                        console.log(`Successfully set ${propertyName}`);
-                    } catch (error) {
-                        console.error(`Error setting ${propertyName}:`, error);
-                        console.error(`Error details:`, JSON.stringify(error, null, 2));
-                        // Continue with other properties even if one fails
-                    }
+                // Save the device with updated properties
+                console.log('Calling Set on Device entity');
+                try {
+                    const result = await new Promise((resolve, reject) => {
+                        api.call('Set', {
+                            typeName: 'Device',
+                            entity: device
+                        }, resolve, reject);
+                    });
+                    console.log('Device updated successfully, result:', result);
+                } catch (error) {
+                    console.error('Error updating device:', error);
+                    console.error('Error details:', JSON.stringify(error, null, 2));
+                    throw error;
                 }
 
                 console.log('All custom properties updated successfully');
