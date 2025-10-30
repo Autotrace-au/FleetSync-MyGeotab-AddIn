@@ -161,6 +161,7 @@
         <nav class="tab-navigation">
             <button class="tab-button active" data-tab="properties">Property Setup</button>
             <button class="tab-button" data-tab="assets">Manage Assets</button>
+            <button class="tab-button" data-tab="sync">Sync to Exchange</button>
         </nav>
 
         <div class="content-wrapper tab-content active" id="propertiesTab">
@@ -409,6 +410,76 @@
             </section>
         </div>
 
+        <div class="content-wrapper tab-content" id="syncTab">
+            <section class="status-section">
+                <h2>Sync to Exchange Online</h2>
+                <div id="syncStatusMessage" class="status-message status-info">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Configure your Azure Automation webhook to enable synchronisation with Exchange Online.</span>
+                </div>
+            </section>
+
+            <section class="properties-section">
+                <h2>Azure Automation Configuration</h2>
+                <p class="info-text">
+                    Enter the webhook URL from your Azure Automation runbook. This webhook will be called to trigger the FleetSync Orchestrator script that synchronises MyGeotab devices with Exchange equipment mailboxes.
+                </p>
+
+                <div class="property-item">
+                    <div class="property-info">
+                        <div class="property-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Webhook URL</h3>
+                            <p>Azure Automation webhook endpoint for FleetSync Orchestrator</p>
+                        </div>
+                    </div>
+                    <input type="text" id="webhookUrl" placeholder="https://your-webhook-url.azure-automation.net/webhooks?token=..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button id="saveWebhookBtn" class="btn btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Save Webhook URL
+                    </button>
+                </div>
+            </section>
+
+            <section class="properties-section">
+                <h2>Manual Synchronisation</h2>
+                <p class="info-text">
+                    Trigger an immediate synchronisation between MyGeotab devices and Exchange equipment mailboxes. This will run the FleetSync Orchestrator script via the configured webhook.
+                </p>
+
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="triggerSyncBtn" class="btn btn-success" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+                        </svg>
+                        Trigger Sync Now
+                    </button>
+                    <span id="syncProgress" style="display: none; color: var(--text-muted); font-size: 13px;">
+                        <span class="loading-spinner"></span> Synchronising...
+                    </span>
+                </div>
+
+                <div id="syncResultContainer" style="display: none; margin-top: 20px; padding: 16px; background-color: var(--light-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">Sync Result</h4>
+                    <pre id="syncResult" style="margin: 0; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; color: var(--text-color);"></pre>
+                </div>
+            </section>
+        </div>
+
         <footer>
             <div class="footer-content">
                 <p>&copy; 2025 Autotrace. All rights reserved.</p>
@@ -476,17 +547,24 @@
                 const refreshBtn = document.getElementById('refreshBtn');
                 const loadAssetsBtn = document.getElementById('loadAssetsBtn');
                 const saveAllAssetsBtn = document.getElementById('saveAllAssetsBtn');
+                const saveWebhookBtn = document.getElementById('saveWebhookBtn');
+                const triggerSyncBtn = document.getElementById('triggerSyncBtn');
 
                 if (checkBtn) checkBtn.addEventListener('click', checkProperties);
                 if (createBtn) createBtn.addEventListener('click', createMissingProperties);
                 if (refreshBtn) refreshBtn.addEventListener('click', refreshPage);
                 if (loadAssetsBtn) loadAssetsBtn.addEventListener('click', loadAssets);
                 if (saveAllAssetsBtn) saveAllAssetsBtn.addEventListener('click', saveAllAssets);
+                if (saveWebhookBtn) saveWebhookBtn.addEventListener('click', saveWebhookUrl);
+                if (triggerSyncBtn) triggerSyncBtn.addEventListener('click', triggerSync);
 
                 // Tab switching
                 document.querySelectorAll('.tab-button').forEach(button => {
                     button.addEventListener('click', () => switchTab(button.dataset.tab));
                 });
+
+                // Load saved webhook URL on init
+                loadWebhookUrl();
             }
 
             function switchTab(tabName) {
@@ -498,6 +576,7 @@
                 // Update tab content
                 document.getElementById('propertiesTab').classList.toggle('active', tabName === 'properties');
                 document.getElementById('assetsTab').classList.toggle('active', tabName === 'assets');
+                document.getElementById('syncTab').classList.toggle('active', tabName === 'sync');
             }
 
             function getStatusIcon(type) {
@@ -959,6 +1038,101 @@
                         entity: device
                     }, resolve, reject);
                 });
+            }
+
+            // Webhook URL management functions
+            function loadWebhookUrl() {
+                const savedUrl = localStorage.getItem('fleetSyncWebhookUrl');
+                const webhookInput = document.getElementById('webhookUrl');
+                const triggerBtn = document.getElementById('triggerSyncBtn');
+
+                if (savedUrl && webhookInput) {
+                    webhookInput.value = savedUrl;
+                    if (triggerBtn) triggerBtn.disabled = false;
+                }
+            }
+
+            function saveWebhookUrl() {
+                const webhookInput = document.getElementById('webhookUrl');
+                const triggerBtn = document.getElementById('triggerSyncBtn');
+                const url = webhookInput.value.trim();
+
+                if (!url) {
+                    updateSyncStatus('Please enter a webhook URL.', 'error');
+                    return;
+                }
+
+                // Basic URL validation
+                try {
+                    new URL(url);
+                } catch (e) {
+                    updateSyncStatus('Invalid URL format. Please enter a valid webhook URL.', 'error');
+                    return;
+                }
+
+                localStorage.setItem('fleetSyncWebhookUrl', url);
+                if (triggerBtn) triggerBtn.disabled = false;
+                updateSyncStatus('Webhook URL saved successfully.', 'success');
+            }
+
+            async function triggerSync() {
+                const webhookUrl = localStorage.getItem('fleetSyncWebhookUrl');
+                const triggerBtn = document.getElementById('triggerSyncBtn');
+                const syncProgress = document.getElementById('syncProgress');
+                const syncResultContainer = document.getElementById('syncResultContainer');
+                const syncResult = document.getElementById('syncResult');
+
+                if (!webhookUrl) {
+                    updateSyncStatus('Please save a webhook URL first.', 'error');
+                    return;
+                }
+
+                try {
+                    triggerBtn.disabled = true;
+                    syncProgress.style.display = 'inline-flex';
+                    syncProgress.style.alignItems = 'center';
+                    syncProgress.style.gap = '8px';
+                    syncResultContainer.style.display = 'none';
+                    updateSyncStatus('Triggering synchronisation...', 'info');
+
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            source: 'MyGeotab Add-In',
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+
+                    if (response.ok) {
+                        const result = await response.text();
+                        updateSyncStatus('Synchronisation triggered successfully!', 'success');
+                        syncResult.textContent = result || 'Webhook triggered. Check Azure Automation for job status.';
+                        syncResultContainer.style.display = 'block';
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                } catch (error) {
+                    console.error('Sync error:', error);
+                    updateSyncStatus(`Error: ${error.message}`, 'error');
+                    syncResult.textContent = `Failed to trigger sync: ${error.message}`;
+                    syncResultContainer.style.display = 'block';
+                } finally {
+                    triggerBtn.disabled = false;
+                    syncProgress.style.display = 'none';
+                }
+            }
+
+            function updateSyncStatus(message, type) {
+                const statusDiv = document.getElementById('syncStatusMessage');
+                if (!statusDiv) return;
+
+                statusDiv.className = `status-message status-${type}`;
+                const icon = getStatusIcon(type);
+                statusDiv.innerHTML = `${icon}<span>${message}</span>`;
             }
 
             return {
