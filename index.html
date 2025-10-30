@@ -1789,12 +1789,22 @@
                     console.log('\nStep 4: Final customProperties array:');
                     console.log(JSON.stringify(device.customProperties, null, 2));
 
-                    // Step 6: Save the device
+                    // Step 6: Save the device - send only required fields to avoid JsonSerializerException
                     console.log('\nStep 5: Calling Set on Device entity...');
+                    console.log('Creating minimal device object with only id and customProperties...');
+
+                    // Create a minimal device object with only the required fields
+                    const minimalDevice = {
+                        id: device.id,
+                        customProperties: device.customProperties
+                    };
+
+                    console.log('Minimal device object:', JSON.stringify(minimalDevice, null, 2));
+
                     const result = await new Promise((resolve, reject) => {
                         api.call('Set', {
                             typeName: 'Device',
-                            entity: device
+                            entity: minimalDevice
                         }, resolve, reject);
                     });
                     console.log('Set result:', result);
