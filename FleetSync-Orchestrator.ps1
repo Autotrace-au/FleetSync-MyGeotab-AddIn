@@ -585,13 +585,15 @@ function New-EquipmentMailboxIfMissing {
     else { $acs=[string]$AllowConflicts; $acs=$acs.Trim().ToLowerInvariant(); $allowConflictsBool = ($acs -in @('true','1','on','yes','y')) }
   }
 
-  # Prominent response message for accepted/declined bookings
+  # Additional response message (applies to ALL responses: accepted, declined, tentative)
+  # Keep it neutral since Exchange doesn't support different messages for different statuses
   $responseMessage = @"
-✅ BOOKING CONFIRMED - This equipment has been reserved for you.
+IMPORTANT: Check the meeting status in your calendar:
+- ACCEPTED = Equipment is reserved for you
+- DECLINED = Equipment is NOT available - DELETE this calendar entry immediately
+- TENTATIVE = Awaiting approval from fleet manager
 
-Please cancel this booking if your plans change so others can use the equipment.
-
-If this booking was DECLINED, please DELETE this calendar entry immediately - you do NOT have the equipment.
+Always cancel bookings you no longer need so others can use the equipment.
 "@
 
   # Booking rules (using custom property values)
