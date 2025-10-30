@@ -1679,12 +1679,12 @@
                     });
                     console.log(`Found ${allProperties.length} total properties in system`);
 
-                    // Filter to our FleetSync properties
+                    // Filter to our FleetSync properties (match by name since internalName isn't returned)
                     const fleetSyncProperties = allProperties.filter(p =>
-                        REQUIRED_PROPERTIES.some(rp => rp.internalName === p.internalName)
+                        REQUIRED_PROPERTIES.some(rp => rp.name === p.name)
                     );
                     console.log(`Found ${fleetSyncProperties.length} FleetSync properties:`,
-                        fleetSyncProperties.map(p => `${p.name} (${p.internalName})`));
+                        fleetSyncProperties.map(p => p.name));
 
                     // Step 2: Get the device
                     console.log('Step 2: Fetching device...');
@@ -1728,6 +1728,13 @@
 
                     // Step 5: Update or create PropertyValue objects
                     console.log('Step 3: Creating/updating PropertyValue objects...');
+
+                    // Create a map from internalName to property name for lookup
+                    const internalToDisplayName = {};
+                    REQUIRED_PROPERTIES.forEach(rp => {
+                        internalToDisplayName[rp.internalName] = rp.name;
+                    });
+
                     for (const [key, value] of Object.entries(properties)) {
                         const internalName = propNameMap[key];
                         if (!internalName) {
@@ -1737,11 +1744,18 @@
 
                         console.log(`\nProcessing property: ${internalName} = ${value}`);
 
-                        // Find the CustomProperty definition
-                        const propertyDef = fleetSyncProperties.find(p => p.internalName === internalName);
+                        // Get the display name for this property
+                        const displayName = internalToDisplayName[internalName];
+                        if (!displayName) {
+                            console.error(`Display name not found for ${internalName}`);
+                            continue;
+                        }
+
+                        // Find the CustomProperty definition by name
+                        const propertyDef = fleetSyncProperties.find(p => p.name === displayName);
                         if (!propertyDef) {
-                            console.error(`CustomProperty definition not found for ${internalName}`);
-                            console.error('Available properties:', fleetSyncProperties.map(p => p.internalName));
+                            console.error(`CustomProperty definition not found for ${displayName}`);
+                            console.error('Available properties:', fleetSyncProperties.map(p => p.name));
                             continue;
                         }
                         console.log(`Found property definition: ${propertyDef.name} (ID: ${propertyDef.id})`);
@@ -1755,8 +1769,8 @@
                             console.log(`Found existing PropertyValue, updating: ${propertyValue.value} -> ${value}`);
                             propertyValue.value = value;
                         } else {
-                            console.log(`Creating new PropertyValue for ${internalName}`);
-                            // Create new PropertyValue object
+                            console.log(`PropertyValue not found, creating new one for ${displayName}`);
+                            // Create new PropertyValue object with the same structure as existing ones
                             const newPropertyValue = {
                                 property: {
                                     id: propertyDef.id
