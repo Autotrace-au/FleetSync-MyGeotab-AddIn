@@ -4,7 +4,7 @@
     "version": "3.4",
     "items": [
         {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/cb560cb/index.html?v=3.8.1",
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/27f9b68/index.html?v=3.8.2",
             "path": "ActivityLink/",
             "menuName": {
                 "en": "FleetSync Properties"
