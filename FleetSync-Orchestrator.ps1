@@ -401,20 +401,18 @@ function Get-GeotabDevices {
 
     # Fallbacks from direct device fields if not present in custom properties
     $book  = $bookFromCP
-    if ($null -eq $book) { $book  = Get-IfPresent -Obj $_ -Names @('bookable','isBookable') }
-
-    # DEBUG: Log the raw value retrieved
-    $bookType = if ($null -ne $book) { $book.GetType().Name } else { 'null' }
-    Write-Output "DEBUG: Device '$($_.name)' - Raw Bookable value: '$book' (Type: $bookType)"
+    if ($null -eq $book) { $book  = Get-IfPresent -Obj $_ -Names @('bookable','isBookable','Bookable','IsBookable') }
 
     # Normalise Bookable to Boolean
+    # IMPORTANT: Default to FALSE when null for safety (devices must explicitly opt-in to booking)
     if ($null -ne $book) {
       if ($book -is [bool]) { $book = [bool]$book }
       elseif ($book -is [int]) { $book = ($book -ne 0) }
       else { $s=[string]$book; $s=$s.Trim().ToLowerInvariant(); $book = ($s -in @('true','1','on','yes','y')) }
-      Write-Output "DEBUG: Device '$($_.name)' - Normalised Bookable value: $book"
+      Write-Output "Device '$($_.name)' - Bookable property set to: $book"
     } else {
-      Write-Output "DEBUG: Device '$($_.name)' - Bookable value is NULL (will default to TRUE)"
+      $book = $false  # Default to NOT bookable when property is not set
+      Write-Output "Device '$($_.name)' - Bookable property not set, defaulting to: FALSE (not bookable)"
     }
 
     # Normalise Recurring to Boolean
