@@ -1710,7 +1710,10 @@
                             }
                         }, resolve, reject);
                     });
-                    console.log('Existing CustomData:', existingCustomData);
+                    console.log('Existing CustomData count:', existingCustomData.length);
+                    existingCustomData.forEach(cd => {
+                        console.log(`  - Property ID: ${cd.property?.id}, Data: ${cd.data}, CustomData ID: ${cd.id}`);
+                    });
                 } catch (error) {
                     console.error('Error fetching existing CustomData:', error);
                 }
@@ -1739,8 +1742,8 @@
 
                         if (existingData) {
                             // Update existing CustomData
-                            console.log(`Updating existing CustomData ID: ${existingData.id}`);
-                            await new Promise((resolve, reject) => {
+                            console.log(`Updating existing CustomData ID: ${existingData.id} for ${propertyName}`);
+                            const result = await new Promise((resolve, reject) => {
                                 api.call('Set', {
                                     typeName: 'CustomData',
                                     entity: {
@@ -1752,10 +1755,11 @@
                                     }
                                 }, resolve, reject);
                             });
+                            console.log(`Set result:`, result);
                         } else {
                             // Add new CustomData
-                            console.log(`Creating new CustomData`);
-                            await new Promise((resolve, reject) => {
+                            console.log(`Creating new CustomData for ${propertyName}`);
+                            const result = await new Promise((resolve, reject) => {
                                 api.call('Add', {
                                     typeName: 'CustomData',
                                     entity: {
@@ -1766,6 +1770,7 @@
                                     }
                                 }, resolve, reject);
                             });
+                            console.log(`Add result:`, result);
                         }
                         console.log(`Successfully set ${propertyName}`);
                     } catch (error) {
