@@ -99,6 +99,28 @@
 #fleetSyncAddin .help-link { margin-top: 16px; }
 #fleetSyncAddin .help-link a { color: var(--primary-color); text-decoration: none; font-weight: 600; transition: all 0.2s ease; border-bottom: 2px solid transparent; }
 #fleetSyncAddin .help-link a:hover { color: var(--primary-dark); border-bottom-color: var(--primary-color); }
+#fleetSyncAddin .tab-navigation { display: flex; gap: 0; background-color: var(--card-bg); border-bottom: 2px solid var(--border-color); padding: 0 40px; margin: 0; box-shadow: var(--shadow-sm); }
+#fleetSyncAddin .tab-button { padding: 16px 24px; font-size: 15px; font-weight: 600; color: var(--text-muted); background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.3s ease; position: relative; }
+#fleetSyncAddin .tab-button:hover { color: var(--primary-color); background-color: var(--light-bg); }
+#fleetSyncAddin .tab-button.active { color: var(--primary-color); border-bottom-color: var(--primary-color); background-color: var(--light-bg); }
+#fleetSyncAddin .tab-content { display: none; }
+#fleetSyncAddin .tab-content.active { display: block; }
+#fleetSyncAddin .asset-table-container { overflow-x: auto; background-color: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); }
+#fleetSyncAddin .asset-table { width: 100%; border-collapse: collapse; }
+#fleetSyncAddin .asset-table thead { background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white; }
+#fleetSyncAddin .asset-table th { padding: 14px 12px; text-align: left; font-weight: 600; font-size: 13px; white-space: nowrap; }
+#fleetSyncAddin .asset-table td { padding: 12px; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+#fleetSyncAddin .asset-table tbody tr:hover { background-color: var(--light-bg); }
+#fleetSyncAddin .asset-table tbody tr:last-child td { border-bottom: none; }
+#fleetSyncAddin .asset-table input[type="text"], #fleetSyncAddin .asset-table input[type="number"] { width: 100%; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; transition: all 0.2s ease; }
+#fleetSyncAddin .asset-table input[type="text"]:focus, #fleetSyncAddin .asset-table input[type="number"]:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+#fleetSyncAddin .asset-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+#fleetSyncAddin .asset-table .asset-name { font-weight: 600; color: var(--text-color); }
+#fleetSyncAddin .asset-table .asset-serial { color: var(--text-muted); font-size: 12px; }
+#fleetSyncAddin .save-btn-cell { text-align: center; }
+#fleetSyncAddin .btn-save { padding: 6px 16px; font-size: 12px; }
+#fleetSyncAddin .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 #fleetSyncAddin footer { margin-top: 0; padding: 24px 40px; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 12px; background-color: var(--light-bg); }
 #fleetSyncAddin .footer-content { max-width: 900px; margin: 0 auto; }
 @media (max-width: 768px) {
@@ -125,7 +147,12 @@
             </div>
         </header>
 
-        <div class="content-wrapper">
+        <nav class="tab-navigation">
+            <button class="tab-button active" data-tab="properties">Property Setup</button>
+            <button class="tab-button" data-tab="assets">Manage Assets</button>
+        </nav>
+
+        <div class="content-wrapper tab-content active" id="propertiesTab">
             <section class="status-section">
             <h2>Status</h2>
             <div id="statusMessage" class="status-message status-info">
@@ -313,6 +340,64 @@
         </section>
         </div>
 
+        <!-- Assets Tab -->
+        <div class="content-wrapper tab-content" id="assetsTab">
+            <section class="status-section">
+                <h2>Asset Management</h2>
+                <div id="assetStatusMessage" class="status-message status-info">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Click "Load Assets" to fetch all devices from MyGeotab and manage their booking properties.</span>
+                </div>
+            </section>
+
+            <section class="actions-section">
+                <button id="loadAssetsBtn" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Load Assets
+                </button>
+                <button id="saveAllAssetsBtn" class="btn btn-success" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save All Changes
+                </button>
+            </section>
+
+            <section class="properties-section">
+                <h2>Assets</h2>
+                <p class="info-text">
+                    Edit booking properties for each asset below. Changes are saved individually or you can save all at once.
+                </p>
+                <div id="assetTableContainer" class="asset-table-container" style="display: none;">
+                    <table class="asset-table">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Bookable</th>
+                                <th>Recurring</th>
+                                <th>Approvers</th>
+                                <th>Fleet Managers</th>
+                                <th>Conflicts</th>
+                                <th>Window (Days)</th>
+                                <th>Max Duration (Hrs)</th>
+                                <th>Language</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assetTableBody">
+                            <!-- Asset rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
         <footer>
             <div class="footer-content">
                 <p>&copy; 2025 Autotrace. All rights reserved.</p>
@@ -378,9 +463,30 @@
                 const checkBtn = document.getElementById('checkPropertiesBtn');
                 const createBtn = document.getElementById('createPropertiesBtn');
                 const refreshBtn = document.getElementById('refreshBtn');
+                const loadAssetsBtn = document.getElementById('loadAssetsBtn');
+                const saveAllAssetsBtn = document.getElementById('saveAllAssetsBtn');
+
                 if (checkBtn) checkBtn.addEventListener('click', checkProperties);
                 if (createBtn) createBtn.addEventListener('click', createMissingProperties);
                 if (refreshBtn) refreshBtn.addEventListener('click', refreshPage);
+                if (loadAssetsBtn) loadAssetsBtn.addEventListener('click', loadAssets);
+                if (saveAllAssetsBtn) saveAllAssetsBtn.addEventListener('click', saveAllAssets);
+
+                // Tab switching
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.addEventListener('click', () => switchTab(button.dataset.tab));
+                });
+            }
+
+            function switchTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === tabName);
+                });
+
+                // Update tab content
+                document.getElementById('propertiesTab').classList.toggle('active', tabName === 'properties');
+                document.getElementById('assetsTab').classList.toggle('active', tabName === 'assets');
             }
 
             function getStatusIcon(type) {
@@ -572,7 +678,306 @@
                 if (createBtn) createBtn.disabled = true;
             }
 
-            return { initialize: initialize, focus: focus, blur: blur };
+            // Asset Management Functions
+            let allAssets = [];
+            let assetChanges = {};
+
+            function updateAssetStatus(message, type = 'info') {
+                const statusElement = document.getElementById('assetStatusMessage');
+                if (statusElement) {
+                    statusElement.innerHTML = getStatusIcon(type) + '<span>' + message + '</span>';
+                    statusElement.className = `status-message status-${type}`;
+                }
+            }
+
+            async function loadAssets() {
+                const loadBtn = document.getElementById('loadAssetsBtn');
+                const saveAllBtn = document.getElementById('saveAllAssetsBtn');
+                const tableContainer = document.getElementById('assetTableContainer');
+
+                try {
+                    loadBtn.disabled = true;
+                    loadBtn.innerHTML = '<span class="loading-spinner"></span> Loading...';
+                    updateAssetStatus('Loading assets from MyGeotab...', 'info');
+
+                    // Get all devices
+                    const devices = await new Promise((resolve, reject) => {
+                        api.call('Get', {
+                            typeName: 'Device',
+                            resultsLimit: 5000
+                        }, resolve, reject);
+                    });
+
+                    // Get all custom properties for these devices
+                    const deviceIds = devices.map(d => ({ id: d.id }));
+                    const customProperties = await new Promise((resolve, reject) => {
+                        api.call('Get', {
+                            typeName: 'CustomProperty',
+                            search: { devices: deviceIds }
+                        }, resolve, reject);
+                    });
+
+                    allAssets = devices.map(device => {
+                        const deviceProps = customProperties.filter(cp => cp.device && cp.device.id === device.id);
+                        return {
+                            id: device.id,
+                            name: device.name,
+                            serialNumber: device.serialNumber,
+                            properties: getDeviceProperties(deviceProps)
+                        };
+                    });
+
+                    renderAssetTable();
+                    tableContainer.style.display = 'block';
+                    saveAllBtn.disabled = false;
+                    updateAssetStatus(`Loaded ${allAssets.length} assets successfully.`, 'success');
+
+                } catch (error) {
+                    console.error('Error loading assets:', error);
+                    updateAssetStatus(`Error: ${error.message || 'Failed to load assets'}`, 'error');
+                } finally {
+                    loadBtn.disabled = false;
+                    loadBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Load Assets';
+                }
+            }
+
+            function getDeviceProperties(customProps) {
+                const props = {
+                    bookable: false,
+                    recurring: false,
+                    approvers: '',
+                    fleetManagers: '',
+                    conflicts: false,
+                    windowDays: 90,
+                    maxDurationHours: 24,
+                    language: 'en-AU'
+                };
+
+                customProps.forEach(cp => {
+                    const propName = cp.property?.name?.toLowerCase() || '';
+                    if (propName.includes('bookable') || propName.includes('enable equipment booking')) {
+                        props.bookable = cp.value === 'true' || cp.value === true;
+                    } else if (propName.includes('recurring')) {
+                        props.recurring = cp.value === 'true' || cp.value === true;
+                    } else if (propName.includes('approver')) {
+                        props.approvers = cp.value || '';
+                    } else if (propName.includes('fleet manager')) {
+                        props.fleetManagers = cp.value || '';
+                    } else if (propName.includes('conflict') || propName.includes('double booking')) {
+                        props.conflicts = cp.value === 'true' || cp.value === true;
+                    } else if (propName.includes('booking window')) {
+                        props.windowDays = parseInt(cp.value) || 90;
+                    } else if (propName.includes('maximum') && propName.includes('duration')) {
+                        props.maxDurationHours = parseInt(cp.value) || 24;
+                    } else if (propName.includes('language')) {
+                        props.language = cp.value || 'en-AU';
+                    }
+                });
+
+                return props;
+            }
+
+            function renderAssetTable() {
+                const tbody = document.getElementById('assetTableBody');
+                tbody.innerHTML = '';
+
+                allAssets.forEach((asset, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <div class="asset-name">${escapeHtml(asset.name)}</div>
+                            <div class="asset-serial">${escapeHtml(asset.serialNumber)}</div>
+                        </td>
+                        <td><input type="checkbox" data-asset="${index}" data-prop="bookable" ${asset.properties.bookable ? 'checked' : ''}></td>
+                        <td><input type="checkbox" data-asset="${index}" data-prop="recurring" ${asset.properties.recurring ? 'checked' : ''}></td>
+                        <td><input type="text" data-asset="${index}" data-prop="approvers" value="${escapeHtml(asset.properties.approvers)}" placeholder="email1;email2"></td>
+                        <td><input type="text" data-asset="${index}" data-prop="fleetManagers" value="${escapeHtml(asset.properties.fleetManagers)}" placeholder="email1;email2"></td>
+                        <td><input type="checkbox" data-asset="${index}" data-prop="conflicts" ${asset.properties.conflicts ? 'checked' : ''}></td>
+                        <td><input type="number" data-asset="${index}" data-prop="windowDays" value="${asset.properties.windowDays}" min="1" max="365"></td>
+                        <td><input type="number" data-asset="${index}" data-prop="maxDurationHours" value="${asset.properties.maxDurationHours}" min="1" max="720"></td>
+                        <td><input type="text" data-asset="${index}" data-prop="language" value="${escapeHtml(asset.properties.language)}" placeholder="en-AU"></td>
+                        <td class="save-btn-cell">
+                            <button class="btn btn-primary btn-save" data-save-asset="${index}">Save</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+
+                    // Add change listeners
+                    row.querySelectorAll('input').forEach(input => {
+                        input.addEventListener('change', () => trackAssetChange(index));
+                    });
+
+                    // Add save button listener
+                    const saveBtn = row.querySelector('[data-save-asset]');
+                    if (saveBtn) {
+                        saveBtn.addEventListener('click', () => saveAsset(index));
+                    }
+                });
+            }
+
+            function trackAssetChange(assetIndex) {
+                assetChanges[assetIndex] = true;
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text || '';
+                return div.innerHTML;
+            }
+
+            async function saveAsset(assetIndex) {
+                const asset = allAssets[assetIndex];
+                if (!asset) return;
+
+                try {
+                    // Get current values from inputs
+                    const inputs = document.querySelectorAll(`[data-asset="${assetIndex}"]`);
+                    const updates = {};
+
+                    inputs.forEach(input => {
+                        const prop = input.dataset.prop;
+                        if (input.type === 'checkbox') {
+                            updates[prop] = input.checked;
+                        } else if (input.type === 'number') {
+                            updates[prop] = parseInt(input.value) || 0;
+                        } else {
+                            updates[prop] = input.value;
+                        }
+                    });
+
+                    // Update properties in MyGeotab
+                    await updateDeviceProperties(asset.id, updates);
+
+                    // Update local data
+                    asset.properties = updates;
+                    delete assetChanges[assetIndex];
+
+                    updateAssetStatus(`Saved changes for ${asset.name}`, 'success');
+
+                } catch (error) {
+                    console.error('Error saving asset:', error);
+                    updateAssetStatus(`Error saving ${asset.name}: ${error.message}`, 'error');
+                }
+            }
+
+            async function saveAllAssets() {
+                const saveAllBtn = document.getElementById('saveAllAssetsBtn');
+                const changedIndices = Object.keys(assetChanges).map(k => parseInt(k));
+
+                if (changedIndices.length === 0) {
+                    updateAssetStatus('No changes to save.', 'info');
+                    return;
+                }
+
+                try {
+                    saveAllBtn.disabled = true;
+                    saveAllBtn.innerHTML = '<span class="loading-spinner"></span> Saving...';
+                    updateAssetStatus(`Saving changes for ${changedIndices.length} assets...`, 'info');
+
+                    let successCount = 0;
+                    let errorCount = 0;
+
+                    for (const index of changedIndices) {
+                        try {
+                            await saveAsset(index);
+                            successCount++;
+                        } catch (error) {
+                            errorCount++;
+                            console.error(`Failed to save asset ${index}:`, error);
+                        }
+                    }
+
+                    if (errorCount === 0) {
+                        updateAssetStatus(`Successfully saved ${successCount} assets!`, 'success');
+                        assetChanges = {};
+                    } else {
+                        updateAssetStatus(`Saved ${successCount} assets with ${errorCount} errors.`, 'warning');
+                    }
+
+                } catch (error) {
+                    console.error('Error saving all assets:', error);
+                    updateAssetStatus(`Error: ${error.message}`, 'error');
+                } finally {
+                    saveAllBtn.disabled = false;
+                    saveAllBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save All Changes';
+                }
+            }
+
+            async function updateDeviceProperties(deviceId, properties) {
+                // Get property definitions
+                const propertyDefs = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'Property',
+                        search: { propertySet: { id: 'FleetSyncPropertiesId' } }
+                    }, resolve, reject);
+                });
+
+                // Get existing custom properties for this device
+                const existingProps = await new Promise((resolve, reject) => {
+                    api.call('Get', {
+                        typeName: 'CustomProperty',
+                        search: { device: { id: deviceId } }
+                    }, resolve, reject);
+                });
+
+                // Map property names to IDs
+                const propMap = {
+                    'bookable': 'Bookable',
+                    'recurring': 'AllowRecurringBooking',
+                    'approvers': 'Approvers',
+                    'fleetManagers': 'FleetManagers',
+                    'conflicts': 'AllowConflicts',
+                    'windowDays': 'BookingWindowInDays',
+                    'maxDurationHours': 'MaximumDurationInHours',
+                    'language': 'MailboxLanguage'
+                };
+
+                // Update or create each property
+                for (const [key, value] of Object.entries(properties)) {
+                    const propInternalName = propMap[key];
+                    if (!propInternalName) continue;
+
+                    const propDef = propertyDefs.find(p => p.name.includes(propInternalName) || p.name.toLowerCase().includes(key));
+                    if (!propDef) continue;
+
+                    const existingProp = existingProps.find(ep => ep.property && ep.property.id === propDef.id);
+
+                    const propValue = typeof value === 'boolean' ? value.toString() : value.toString();
+
+                    if (existingProp) {
+                        // Update existing
+                        await new Promise((resolve, reject) => {
+                            api.call('Set', {
+                                typeName: 'CustomProperty',
+                                entity: {
+                                    id: existingProp.id,
+                                    device: { id: deviceId },
+                                    property: { id: propDef.id },
+                                    value: propValue
+                                }
+                            }, resolve, reject);
+                        });
+                    } else {
+                        // Create new
+                        await new Promise((resolve, reject) => {
+                            api.call('Add', {
+                                typeName: 'CustomProperty',
+                                entity: {
+                                    device: { id: deviceId },
+                                    property: { id: propDef.id },
+                                    value: propValue
+                                }
+                            }, resolve, reject);
+                        });
+                    }
+                }
+            }
+
+            return {
+                initialize: initialize,
+                focus: focus,
+                blur: blur
+            };
         };
         })();
     </script>
