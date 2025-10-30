@@ -1789,35 +1789,48 @@
                     console.log('\nStep 4: Final customProperties array:');
                     console.log(JSON.stringify(device.customProperties, null, 2));
 
-                    // Step 6: Save the device - send only required fields to avoid JsonSerializerException
-                    console.log('\nStep 5: Calling Set on Device entity...');
-                    console.log('Simplifying customProperties to only include property ID and value...');
+                    // Step 5: Save property values using Add method for PropertyValue entities
+                    console.log('\nStep 5: Saving property values using Add method...');
+                    console.log('NOTE: customProperties is read-only on Device entity, must use PropertyValue entity instead');
 
-                    // Simplify customProperties - only include property.id and value
-                    const simplifiedCustomProperties = device.customProperties.map(pv => ({
-                        property: {
-                            id: pv.property.id
-                        },
-                        value: pv.value
-                    }));
+                    // For each property, create a PropertyValue entity and use Add method
+                    const addPromises = [];
+                    for (const pv of device.customProperties) {
+                        if (pv.value !== undefined) {
+                            console.log(`Adding PropertyValue for ${pv.property.name}: ${pv.value}`);
 
-                    console.log('Simplified customProperties:', JSON.stringify(simplifiedCustomProperties, null, 2));
+                            const propertyValueEntity = {
+                                property: {
+                                    id: pv.property.id
+                                },
+                                device: {
+                                    id: device.id
+                                },
+                                value: pv.value
+                            };
 
-                    // Create a minimal device object with only the required fields
-                    const minimalDevice = {
-                        id: device.id,
-                        customProperties: simplifiedCustomProperties
-                    };
+                            console.log('PropertyValue entity:', JSON.stringify(propertyValueEntity, null, 2));
 
-                    console.log('Minimal device object:', JSON.stringify(minimalDevice, null, 2));
+                            addPromises.push(
+                                new Promise((resolve, reject) => {
+                                    api.call('Add', {
+                                        typeName: 'PropertyValue',
+                                        entity: propertyValueEntity
+                                    }, resolve, reject);
+                                }).then(result => {
+                                    console.log(`PropertyValue added successfully for ${pv.property.name}:`, result);
+                                    return result;
+                                }).catch(error => {
+                                    console.error(`Error adding PropertyValue for ${pv.property.name}:`, error);
+                                    throw error;
+                                })
+                            );
+                        }
+                    }
 
-                    const result = await new Promise((resolve, reject) => {
-                        api.call('Set', {
-                            typeName: 'Device',
-                            entity: minimalDevice
-                        }, resolve, reject);
-                    });
-                    console.log('Set result:', result);
+                    console.log(`Waiting for ${addPromises.length} PropertyValue Add operations...`);
+                    const results = await Promise.all(addPromises);
+                    console.log('All PropertyValue entities added successfully:', results);
 
                     // Step 7: Verify the save by fetching the device again
                     console.log('\nStep 6: Verifying save by fetching device again...');
