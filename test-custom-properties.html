@@ -311,9 +311,10 @@
                 const entity = {
                     device: { id: selectedDevice.id },
                     data: value.toString(),
-                    property: { id: bookableProp.property.id }
+                    property: { id: bookableProp.property.id },
+                    dateTime: new Date().toISOString()
                 };
-                
+
                 log('method1Output', '\nCalling Add with entity:');
                 log('method1Output', JSON.stringify(entity, null, 2));
                 
@@ -381,7 +382,8 @@
                     id: existingData.id,
                     device: { id: selectedDevice.id },
                     data: value.toString(),
-                    property: { id: bookableProp.property.id }
+                    property: { id: bookableProp.property.id },
+                    dateTime: new Date().toISOString()
                 };
                 
                 log('method2Output', '\nCalling Set with entity:');
