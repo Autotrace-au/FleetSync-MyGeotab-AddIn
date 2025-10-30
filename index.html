@@ -1683,6 +1683,11 @@
                 const device = devices[0];
                 console.log('Device retrieved:', device.name);
                 console.log('Device object before update:', device);
+                console.log('Device keys:', Object.keys(device));
+                console.log('Checking for existing custom properties:');
+                console.log('  device.Bookable:', device.Bookable);
+                console.log('  device.AllowRecurringBooking:', device.AllowRecurringBooking);
+                console.log('  device.Approvers:', device.Approvers);
 
                 // Map our property keys to the internal names defined in REQUIRED_PROPERTIES
                 const propMap = {
@@ -1719,18 +1724,46 @@
                 }
 
                 console.log('Device object after update:', device);
+                console.log('Device object after update - stringified:', JSON.stringify(device, null, 2));
                 console.log('Calling MyGeotab Set API to save device...');
 
                 // Save the updated device
-                const result = await new Promise((resolve, reject) => {
-                    api.call('Set', {
-                        typeName: 'Device',
-                        entity: device
-                    }, resolve, reject);
-                });
+                try {
+                    const result = await new Promise((resolve, reject) => {
+                        api.call('Set', {
+                            typeName: 'Device',
+                            entity: device
+                        }, (result) => {
+                            console.log('Set API success callback, result:', result);
+                            resolve(result);
+                        }, (error) => {
+                            console.error('Set API error callback, error:', error);
+                            reject(error);
+                        });
+                    });
 
-                console.log('MyGeotab Set API result:', result);
-                console.log('Device properties saved successfully');
+                    console.log('MyGeotab Set API result:', result);
+                    console.log('Device properties saved successfully');
+
+                    // Verify the save by re-fetching the device
+                    console.log('Verifying save by re-fetching device...');
+                    const verifyDevices = await new Promise((resolve, reject) => {
+                        api.call('Get', {
+                            typeName: 'Device',
+                            search: { id: deviceId }
+                        }, resolve, reject);
+                    });
+
+                    if (verifyDevices && verifyDevices.length > 0) {
+                        const verifiedDevice = verifyDevices[0];
+                        console.log('Verified device - Bookable:', verifiedDevice.Bookable);
+                        console.log('Verified device - AllowRecurringBooking:', verifiedDevice.AllowRecurringBooking);
+                        console.log('Verified device - Approvers:', verifiedDevice.Approvers);
+                    }
+                } catch (error) {
+                    console.error('Error in Set API call:', error);
+                    throw error;
+                }
             }
 
             // Webhook URL management functions
