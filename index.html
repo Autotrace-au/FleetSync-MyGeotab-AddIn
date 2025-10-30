@@ -143,6 +143,21 @@
     #fleetSyncAddin .property-icon { margin-right: 0; margin-bottom: 12px; }
     #fleetSyncAddin footer { padding: 20px; }
 }
+
+/* Modal Styles */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-content { background-color: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); max-width: 90%; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.modal-header { padding: 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h2 { margin: 0; font-size: 20px; font-weight: 700; color: #0f172a; }
+.modal-close { background: none; border: none; font-size: 28px; color: #64748b; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s ease; }
+.modal-close:hover { background-color: #f1f5f9; color: #0f172a; }
+.modal-body { padding: 24px; }
+.modal-body .property-item { display: block; margin-bottom: 16px; }
+.modal-body label { display: block; font-weight: 600; margin-bottom: 6px; color: #0f172a; font-size: 13px; }
+.modal-body input[type="checkbox"] { width: 18px; height: 18px; margin-right: 8px; cursor: pointer; }
+.modal-footer { padding: 20px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; }
 `;
             const style = document.createElement('style');
             style.textContent = css;
@@ -371,6 +386,14 @@
                     </svg>
                     Load Assets
                 </button>
+                <button id="createGroupBtn" class="btn btn-secondary" style="margin-left: 10px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"></path>
+                        <line x1="12" y1="11" x2="12" y2="17"></line>
+                        <line x1="9" y1="14" x2="15" y2="14"></line>
+                    </svg>
+                    Create Group
+                </button>
                 <button id="saveAllAssetsBtn" class="btn btn-success" disabled>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
@@ -493,6 +516,69 @@
             </div>
         </footer>
     </div>
+
+    <!-- Create Group Modal -->
+    <div id="createGroupModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Create Asset Group</h2>
+                <button class="modal-close" onclick="document.getElementById('createGroupModal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="info-text" style="margin-bottom: 20px;">
+                    Create a group with default booking properties. When you assign assets to this group, they will inherit these properties.
+                </p>
+
+                <div class="property-item">
+                    <label for="groupName">Group Name</label>
+                    <input type="text" id="groupName" placeholder="e.g., Company Vehicles, Heavy Equipment, Motorcycles" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+
+                <h3 style="margin: 24px 0 12px 0; font-size: 16px; font-weight: 600;">Default Booking Properties</h3>
+
+                <div class="property-item">
+                    <label><input type="checkbox" id="groupBookable"> Enable Equipment Booking</label>
+                </div>
+
+                <div class="property-item">
+                    <label><input type="checkbox" id="groupRecurring"> Allow Recurring Bookings</label>
+                </div>
+
+                <div class="property-item">
+                    <label for="groupApprovers">Booking Approvers (email addresses, semicolon-separated)</label>
+                    <input type="text" id="groupApprovers" placeholder="manager@company.com.au;supervisor@company.com.au" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+
+                <div class="property-item">
+                    <label for="groupFleetManagers">Fleet Managers (email addresses, semicolon-separated)</label>
+                    <input type="text" id="groupFleetManagers" placeholder="fleet@company.com.au" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+
+                <div class="property-item">
+                    <label><input type="checkbox" id="groupConflicts"> Allow Double Booking</label>
+                </div>
+
+                <div class="property-item">
+                    <label for="groupWindowDays">Booking Window (Days)</label>
+                    <input type="number" id="groupWindowDays" value="90" min="1" max="365" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+
+                <div class="property-item">
+                    <label for="groupMaxDurationHours">Maximum Booking Duration (Hours)</label>
+                    <input type="number" id="groupMaxDurationHours" value="24" min="1" max="720" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+
+                <div class="property-item">
+                    <label for="groupLanguage">Mailbox Language</label>
+                    <input type="text" id="groupLanguage" value="en-AU" placeholder="en-AU" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('createGroupModal').style.display='none'">Cancel</button>
+                <button id="saveGroupBtn" class="btn btn-primary">Create Group</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -532,11 +618,19 @@
             function initialize(apiInstance, stateInstance, callback) {
                 api = apiInstance;
                 state = stateInstance;
+
+                // Load groups from localStorage
+                loadGroups();
+
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', setupEventListeners);
                 } else {
                     setupEventListeners();
                 }
+
+                // Load saved webhook URL
+                loadWebhookUrl();
+
                 callback();
             }
 
@@ -553,6 +647,8 @@
                 const createBtn = document.getElementById('createPropertiesBtn');
                 const refreshBtn = document.getElementById('refreshBtn');
                 const loadAssetsBtn = document.getElementById('loadAssetsBtn');
+                const createGroupBtn = document.getElementById('createGroupBtn');
+                const saveGroupBtn = document.getElementById('saveGroupBtn');
                 const saveAllAssetsBtn = document.getElementById('saveAllAssetsBtn');
                 const saveWebhookBtn = document.getElementById('saveWebhookBtn');
                 const triggerSyncBtn = document.getElementById('triggerSyncBtn');
@@ -561,6 +657,8 @@
                 if (createBtn) createBtn.addEventListener('click', createMissingProperties);
                 if (refreshBtn) refreshBtn.addEventListener('click', refreshPage);
                 if (loadAssetsBtn) loadAssetsBtn.addEventListener('click', loadAssets);
+                if (createGroupBtn) createGroupBtn.addEventListener('click', openCreateGroupModal);
+                if (saveGroupBtn) saveGroupBtn.addEventListener('click', saveNewGroup);
                 if (saveAllAssetsBtn) saveAllAssetsBtn.addEventListener('click', saveAllAssets);
                 if (saveWebhookBtn) saveWebhookBtn.addEventListener('click', saveWebhookUrl);
                 if (triggerSyncBtn) triggerSyncBtn.addEventListener('click', triggerSync);
@@ -778,6 +876,89 @@
             // Asset Management Functions
             let allAssets = [];
             let assetChanges = {};
+            let assetGroups = [];
+
+            // Load groups from localStorage
+            function loadGroups() {
+                const stored = localStorage.getItem('fleetSyncGroups');
+                if (stored) {
+                    try {
+                        assetGroups = JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Failed to load groups:', e);
+                        assetGroups = [];
+                    }
+                }
+                return assetGroups;
+            }
+
+            // Save groups to localStorage
+            function saveGroups() {
+                localStorage.setItem('fleetSyncGroups', JSON.stringify(assetGroups));
+            }
+
+            // Create new group
+            function createGroup(name, properties) {
+                const group = {
+                    id: 'group_' + Date.now(),
+                    name: name,
+                    properties: properties,
+                    createdAt: new Date().toISOString()
+                };
+                assetGroups.push(group);
+                saveGroups();
+                return group;
+            }
+
+            // Open create group modal
+            function openCreateGroupModal() {
+                const modal = document.getElementById('createGroupModal');
+                if (modal) {
+                    // Reset form
+                    document.getElementById('groupName').value = '';
+                    document.getElementById('groupBookable').checked = false;
+                    document.getElementById('groupRecurring').checked = false;
+                    document.getElementById('groupApprovers').value = '';
+                    document.getElementById('groupFleetManagers').value = '';
+                    document.getElementById('groupConflicts').checked = false;
+                    document.getElementById('groupWindowDays').value = '90';
+                    document.getElementById('groupMaxDurationHours').value = '24';
+                    document.getElementById('groupLanguage').value = 'en-AU';
+
+                    modal.style.display = 'flex';
+                }
+            }
+
+            // Save new group
+            function saveNewGroup() {
+                const name = document.getElementById('groupName').value.trim();
+
+                if (!name) {
+                    alert('Please enter a group name');
+                    return;
+                }
+
+                const properties = {
+                    bookable: document.getElementById('groupBookable').checked,
+                    recurring: document.getElementById('groupRecurring').checked,
+                    approvers: document.getElementById('groupApprovers').value.trim(),
+                    fleetManagers: document.getElementById('groupFleetManagers').value.trim(),
+                    conflicts: document.getElementById('groupConflicts').checked,
+                    windowDays: parseInt(document.getElementById('groupWindowDays').value) || 90,
+                    maxDurationHours: parseInt(document.getElementById('groupMaxDurationHours').value) || 24,
+                    language: document.getElementById('groupLanguage').value.trim() || 'en-AU'
+                };
+
+                const group = createGroup(name, properties);
+
+                // Close modal
+                document.getElementById('createGroupModal').style.display = 'none';
+
+                // Show success message
+                updateAssetStatus(`Group "${name}" created successfully! Assign assets to this group to apply these properties.`, 'success');
+
+                console.log('Created group:', group);
+            }
 
             function updateAssetStatus(message, type = 'info') {
                 const statusElement = document.getElementById('assetStatusMessage');
