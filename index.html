@@ -1035,21 +1035,27 @@
 
             // Open create group modal
             function openCreateGroupModal() {
+                console.log('openCreateGroupModal called');
                 const modal = document.getElementById('createGroupModal');
-                if (modal) {
-                    // Reset form
-                    document.getElementById('groupName').value = '';
-                    document.getElementById('groupBookable').checked = false;
-                    document.getElementById('groupRecurring').checked = false;
-                    document.getElementById('groupApprovers').value = '';
-                    document.getElementById('groupFleetManagers').value = '';
-                    document.getElementById('groupConflicts').checked = false;
-                    document.getElementById('groupWindowDays').value = '90';
-                    document.getElementById('groupMaxDurationHours').value = '24';
-                    document.getElementById('groupLanguage').value = 'en-AU';
-
-                    modal.style.display = 'flex';
+                if (!modal) {
+                    console.error('createGroupModal not found');
+                    return;
                 }
+
+                console.log('Modal found, resetting form');
+                // Reset form
+                document.getElementById('groupName').value = '';
+                document.getElementById('groupBookable').checked = false;
+                document.getElementById('groupRecurring').checked = false;
+                document.getElementById('groupApprovers').value = '';
+                document.getElementById('groupFleetManagers').value = '';
+                document.getElementById('groupConflicts').checked = false;
+                document.getElementById('groupWindowDays').value = '90';
+                document.getElementById('groupMaxDurationHours').value = '24';
+                document.getElementById('groupLanguage').value = 'en-AU';
+
+                modal.style.display = 'flex';
+                console.log('Modal displayed');
             }
 
             // Save new group
@@ -1366,7 +1372,12 @@
             }
 
             function renderAssetTable() {
+                console.log('renderAssetTable called, assets:', allAssets.length, 'groups:', assetGroups.length);
                 const tbody = document.getElementById('assetTableBody');
+                if (!tbody) {
+                    console.error('assetTableBody not found');
+                    return;
+                }
                 tbody.innerHTML = '';
 
                 // Group assets by their groupId
@@ -1384,6 +1395,8 @@
                         ungroupedAssets.push(asset);
                     }
                 });
+
+                console.log('Grouped assets:', Object.keys(groupedAssets).length, 'Ungrouped:', ungroupedAssets.length);
 
                 // Render groups first
                 Object.keys(groupedAssets).forEach(groupId => {
