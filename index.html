@@ -1668,15 +1668,24 @@
                 console.log('updateDeviceProperties called for device:', deviceId);
                 console.log('Properties to update:', properties);
 
-                // Get all custom property definitions
-                const propertyDefs = await new Promise((resolve, reject) => {
+                // Get the device with its custom properties
+                const devices = await new Promise((resolve, reject) => {
                     api.call('Get', {
-                        typeName: 'CustomProperty',
-                        resultsLimit: 1000
+                        typeName: 'Device',
+                        search: { id: deviceId }
                     }, resolve, reject);
                 });
 
-                console.log('Retrieved', propertyDefs.length, 'custom property definitions');
+                if (!devices || devices.length === 0) {
+                    throw new Error('Device not found');
+                }
+
+                const device = devices[0];
+                console.log('Device retrieved:', device.name);
+
+                // Get custom property definitions from the device
+                const customProperties = device.customProperties || [];
+                console.log('Device has', customProperties.length, 'custom properties defined');
 
                 // Map our property keys to the property names
                 const propNameMap = {
@@ -1714,13 +1723,14 @@
                         continue;
                     }
 
-                    // Find the property definition
-                    const propDef = propertyDefs.find(p => p.name === propertyName);
-                    if (!propDef) {
-                        console.warn('Property definition not found:', propertyName);
+                    // Find the property definition from the device's customProperties array
+                    const customProp = customProperties.find(cp => cp.property && cp.property.name === propertyName);
+                    if (!customProp || !customProp.property) {
+                        console.warn('Property definition not found on device:', propertyName);
                         continue;
                     }
 
+                    const propDef = customProp.property;
                     console.log(`Setting ${propertyName} = ${value} (property ID: ${propDef.id})`);
 
                     try {
