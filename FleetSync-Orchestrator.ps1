@@ -391,24 +391,17 @@ function Get-GeotabDevices {
 
     # Preferred extraction from custom properties by friendly names
     $bookFromCP           = Get-CPVal @('Enable Equipment Booking','Is this a bookable resource','Is this a bookable recource','Bookable','Bookable resource','IsBookable')
-    $locFromCP            = Get-CPVal @('Asset Storage Location','Asset Stored Location','Asset stored location','AssetStoredLocation','Stored location','StoredLocation')
-    $plantFromCP          = Get-CPVal @('Plant Number','Plant No','Plant no','Plant number','PlantNumber','PlantNo')
-    $yearFromCP           = Get-CPVal @('Year Purchased','Year purchased','YearPurchased','Purchase year','Purchased year')
     $recurringFromCP      = Get-CPVal @('Allow Recurring Bookings','Allow Recurring Booking','AllowRecurringBooking','Allow recurring bookings','Allow recurring booking','AllowRecurringMeetings','Allow recurring meetings')
     $approversFromCP      = Get-CPVal @('Booking Approvers','Approvers','Approver Emails','Approver Email','ApproverEmail','ApproverEmail(s)','Approver(s)')
     $fleetManagersFromCP  = Get-CPVal @('Fleet Managers','FleetManagers','Fleet Manager','FleetManager')
     $allowConflictsFromCP = Get-CPVal @('Allow Double Booking','AllowDoubleBooking','Allow Conflicts','AllowConflicts','Allow double booking')
     $bookingWindowFromCP  = Get-CPVal @('Booking Window (Days)','BookingWindowInDays','Booking Window','BookingWindow','Booking window')
     $maxDurationFromCP    = Get-CPVal @('Maximum Booking Duration (Hours)','MaximumDurationInHours','Maximum Duration','MaxDuration','Max Duration')
-    $equipmentCatFromCP   = Get-CPVal @('Equipment Category','EquipmentCategory','Category')
     $mailboxLangFromCP    = Get-CPVal @('Mailbox Language','MailboxLanguage','Language')
 
     # Fallbacks from direct device fields if not present in custom properties
     $book  = $bookFromCP
     if ($null -eq $book) { $book  = Get-IfPresent -Obj $_ -Names @('bookable','isBookable') }
-    $loc   = if ($null -ne $locFromCP) { $locFromCP } else { Get-IfPresent -Obj $_ -Names @('assetStoredLocation','storedLocation','location') }
-    $plant = if ($null -ne $plantFromCP) { $plantFromCP } else { Get-IfPresent -Obj $_ -Names @('plantNo','plantNumber') }
-    $year  = if ($null -ne $yearFromCP) { $yearFromCP } else { Get-IfPresent -Obj $_ -Names @('yearPurchased','purchaseYear','purchasedYear') }
 
     # Normalise Bookable to Boolean
     if ($null -ne $book) {
@@ -472,9 +465,6 @@ function Get-GeotabDevices {
     if ($maxDurationHours -lt 1) { $maxDurationHours = 24 }
     $maxDurationMinutes = $maxDurationHours * 60
 
-    # Equipment Category (prefer custom property, fallback to AssetType)
-    $equipmentCategory = if ($null -ne $equipmentCatFromCP) { $equipmentCatFromCP } else { $atype }
-
     # Mailbox Language with default en-AU
     $mailboxLanguage = if ($null -ne $mailboxLangFromCP -and -not [string]::IsNullOrWhiteSpace($mailboxLangFromCP)) { $mailboxLangFromCP } else { 'en-AU' }
 
@@ -487,9 +477,6 @@ function Get-GeotabDevices {
       StateOrProvince         = $state
       AssetType               = $atype
       Bookable                = $book
-      AssetStoredLocation     = $loc
-      PlantNo                 = $plant
-      YearPurchased           = $year
       TimeZone                = $timeZone
       WorkHours               = $workHours
       RecurringAllowed        = $recurring
@@ -498,7 +485,6 @@ function Get-GeotabDevices {
       AllowConflicts          = $allowConflicts
       BookingWindowInDays     = $bookingWindow
       MaximumDurationInMinutes = $maxDurationMinutes
-      EquipmentCategory       = $equipmentCategory
       MailboxLanguage         = $mailboxLanguage
     }
   }
@@ -521,9 +507,6 @@ function New-EquipmentMailboxIfMissing {
     [string]$StateOrProvince,
     [string]$AssetType,
     [object]$Bookable,
-    [string]$AssetStoredLocation,
-    [string]$PlantNo,
-    [string]$YearPurchased,
     [string]$TimeZone,
     [object]$WorkHours,
     [object]$RecurringAllowed,
@@ -532,7 +515,6 @@ function New-EquipmentMailboxIfMissing {
     [object]$AllowConflicts,
     [int]$BookingWindowInDays = 90,
     [int]$MaximumDurationInMinutes = 1440,
-    [string]$EquipmentCategory,
     [string]$MailboxLanguage = 'en-AU'
   )
   # Update-only: find an existing mailbox by Primary SMTP or Alias
@@ -663,17 +645,12 @@ Always cancel bookings you no longer need so others can use the equipment.
   $cust = @{}
   if ($VIN)                { $cust['CustomAttribute1'] = $VIN }
   if ($LicensePlate)       { $cust['CustomAttribute2'] = $LicensePlate }
-  # Use EquipmentCategory if available, otherwise fallback to AssetType
-  $categoryValue = if ($EquipmentCategory) { $EquipmentCategory } else { $AssetType }
-  if ($categoryValue)      { $cust['CustomAttribute3'] = $categoryValue }
+  if ($AssetType)          { $cust['CustomAttribute3'] = $AssetType }
   if ($null -ne $Bookable) {
     $b = $Bookable
     if ($b -is [string]) { $s=$b.Trim().ToLowerInvariant(); if ($s -eq 'true' -or $s -eq 'on' -or $s -eq '1') { $b=$true } elseif ($s -eq 'false' -or $s -eq 'off' -or $s -eq '0') { $b=$false } }
     $cust['CustomAttribute6'] = ($(if($b){'On'}else{'Off'}))
   }
-  if ($AssetStoredLocation) { $cust['CustomAttribute7'] = $AssetStoredLocation }
-  if ($PlantNo)             { $cust['CustomAttribute8'] = $PlantNo }
-  if ($YearPurchased)       { $cust['CustomAttribute9'] = $YearPurchased }
   if ($cust.Count -gt 0) {
     try { Set-Mailbox -Identity $mbx.Identity @cust | Out-Null } catch { Write-Warning "Could not set custom attributes: $($_.Exception.Message)" }
   }
