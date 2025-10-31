@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# FleetSync Client Onboarding Script
+# FleetBridge Client Onboarding Script
 # This script creates an API key for a new client and stores their credentials in Key Vault
 
 set -e  # Exit on error
 
 # Configuration - UPDATE THESE VALUES
-KEY_VAULT="fleetsync-vault"
+KEY_VAULT="fleetbridge-vault"
 
 # Check arguments
 if [ "$#" -ne 4 ]; then
@@ -23,7 +23,7 @@ USERNAME=$3
 PASSWORD=$4
 
 echo "=========================================="
-echo "FleetSync Client Onboarding"
+echo "FleetBridge Client Onboarding"
 echo "=========================================="
 echo ""
 echo "Client Name: $CLIENT_NAME"
@@ -90,15 +90,15 @@ cat > "$CONFIG_FILE" <<EOF
   "database": "$DATABASE",
   "onboardedDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "addInConfiguration": {
-    "name": "FleetSync Property Manager",
+    "name": "FleetBridge Property Manager",
     "supportEmail": "support@yourcompany.com",
     "version": "6.0.0",
     "items": [
       {
-        "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/COMMIT_HASH/index.html?v=6.0",
+        "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/COMMIT_HASH/index.html?v=6.0",
         "path": "ActivityLink",
         "menuName": {
-          "en": "FleetSync Property Manager"
+          "en": "FleetBridge Property Manager"
         }
       }
     ]
@@ -135,7 +135,7 @@ echo ""
 echo "2. Or create a client-specific version of the Add-In"
 echo ""
 echo "3. Test the API key:"
-echo "   curl -X POST https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY \\"
+echo "   curl -X POST https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY \\"
 echo "     -H 'Content-Type: application/json' \\"
 echo "     -d '{\"apiKey\": \"$API_KEY\", \"deviceId\": \"b1\", \"properties\": {\"bookable\": true}}'"
 echo ""

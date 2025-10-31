@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# FleetSync Azure Function - Full Multi-Tenant Deployment Script
+# FleetBridge Azure Function - Full Multi-Tenant Deployment Script
 # This script deploys the complete multi-tenant architecture with Key Vault
 
 set -e  # Exit on error
 
 # Configuration - UPDATE THESE VALUES
-RESOURCE_GROUP="FleetSyncRG"
+RESOURCE_GROUP="FleetBridgeRG"
 LOCATION="australiaeast"
-STORAGE_ACCOUNT="fleetsyncstore"
-FUNCTION_APP="fleetsync-mygeotab"
-KEY_VAULT="fleetsync-vault"
+STORAGE_ACCOUNT="fleetbridgestore"
+FUNCTION_APP="fleetbridge-mygeotab"
+KEY_VAULT="fleetbridge-vault"
 
 echo "=========================================="
-echo "FleetSync Multi-Tenant Deployment"
+echo "FleetBridge Multi-Tenant Deployment"
 echo "=========================================="
 echo ""
 echo "Configuration:"

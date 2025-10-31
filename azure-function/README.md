@@ -1,4 +1,4 @@
-# FleetSync MyGeotab Azure Function - Multi-Tenant Edition
+# FleetBridge MyGeotab Azure Function - Multi-Tenant Edition
 
 Full multi-tenant Azure Function with API key support and Azure Key Vault integration.
 

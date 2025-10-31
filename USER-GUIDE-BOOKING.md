@@ -1,4 +1,4 @@
-# FleetSync - How to Book Equipment
+# FleetBridge - How to Book Equipment
 
 This guide explains how to book vehicles, trailers, and other equipment through Microsoft Outlook or Teams once the equipment mailboxes have been created.
 

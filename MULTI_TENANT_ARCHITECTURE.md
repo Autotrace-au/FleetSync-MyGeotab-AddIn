@@ -1,8 +1,8 @@
-# FleetSync Multi-Tenant SaaS Architecture
+# FleetBridge Multi-Tenant SaaS Architecture
 
 ## Overview
 
-This document outlines the architecture for running FleetSync as a paid subscription service for multiple clients.
+This document outlines the architecture for running FleetBridge as a paid subscription service for multiple clients.
 
 ## Architecture Diagram
 
@@ -129,15 +129,15 @@ This document outlines the architecture for running FleetSync as a paid subscrip
 ```bash
 # Use the simple function_app.py
 cd azure-function
-func azure functionapp publish fleetsync-mygeotab
+func azure functionapp publish fleetbridge-mygeotab
 ```
 
 #### 2. Configure CORS
 
 ```bash
 az functionapp cors add \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --allowed-origins "https://*.geotab.com" "https://*.geotab.com.au"
 ```
 
@@ -145,8 +145,8 @@ az functionapp cors add \
 
 ```bash
 az functionapp keys list \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --query "functionKeys.default" \
   --output tsv
 ```
@@ -158,15 +158,15 @@ For each new client:
 1. **Create Add-In configuration** (`client-config.json`):
 ```json
 {
-    "name": "FleetSync Property Manager",
+    "name": "FleetBridge Property Manager",
     "supportEmail": "support@yourcompany.com",
     "version": "6.0.0",
     "items": [
         {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/COMMIT_HASH/index.html?v=6.0",
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/COMMIT_HASH/index.html?v=6.0",
             "path": "ActivityLink",
             "menuName": {
-                "en": "FleetSync Property Manager"
+                "en": "FleetBridge Property Manager"
             }
         }
     ]
@@ -194,7 +194,7 @@ View usage logs in Application Insights:
 
 ```bash
 az monitor app-insights query \
-  --app fleetsync-insights \
+  --app fleetbridge-insights \
   --analytics-query "traces | where message contains 'USAGE:' | project timestamp, message"
 ```
 
@@ -209,8 +209,8 @@ Or in Azure Portal:
 
 ```bash
 az keyvault create \
-  --name fleetsync-vault \
-  --resource-group FleetSyncRG \
+  --name fleetbridge-vault \
+  --resource-group FleetBridgeRG \
   --location australiaeast
 ```
 
@@ -219,19 +219,19 @@ az keyvault create \
 ```bash
 # Enable managed identity for Function App
 az functionapp identity assign \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab
 
 # Get the principal ID
 PRINCIPAL_ID=$(az functionapp identity show \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --query principalId \
   --output tsv)
 
 # Grant access to Key Vault
 az keyvault set-policy \
-  --name fleetsync-vault \
+  --name fleetbridge-vault \
   --object-id $PRINCIPAL_ID \
   --secret-permissions get list
 ```
@@ -244,14 +244,14 @@ cp function_app_multitenant.py function_app.py
 
 # Set environment variables
 az functionapp config appsettings set \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --settings \
-    "KEY_VAULT_URL=https://fleetsync-vault.vault.azure.net/" \
+    "KEY_VAULT_URL=https://fleetbridge-vault.vault.azure.net/" \
     "USE_KEY_VAULT=true"
 
 # Deploy
-func azure functionapp publish fleetsync-mygeotab
+func azure functionapp publish fleetbridge-mygeotab
 ```
 
 #### 4. Onboard Client with API Key
@@ -264,17 +264,17 @@ API_KEY=$(uuidgen | tr '[:upper:]' '[:lower:]')
 
 # Store client credentials in Key Vault
 az keyvault secret set \
-  --vault-name fleetsync-vault \
+  --vault-name fleetbridge-vault \
   --name "client-${API_KEY}-database" \
   --value "client-database-name"
 
 az keyvault secret set \
-  --vault-name fleetsync-vault \
+  --vault-name fleetbridge-vault \
   --name "client-${API_KEY}-username" \
   --value "client@example.com"
 
 az keyvault secret set \
-  --vault-name fleetsync-vault \
+  --vault-name fleetbridge-vault \
   --name "client-${API_KEY}-password" \
   --value "client-password"
 
@@ -366,9 +366,9 @@ Consider multi-region deployment when:
 ```bash
 # Alert on function failures
 az monitor metrics alert create \
-  --name "FleetSync Function Failures" \
-  --resource-group FleetSyncRG \
-  --scopes "/subscriptions/YOUR_SUB/resourceGroups/FleetSyncRG/providers/Microsoft.Web/sites/fleetsync-mygeotab" \
+  --name "FleetBridge Function Failures" \
+  --resource-group FleetBridgeRG \
+  --scopes "/subscriptions/YOUR_SUB/resourceGroups/FleetBridgeRG/providers/Microsoft.Web/sites/fleetbridge-mygeotab" \
   --condition "count FunctionExecutionCount < 1" \
   --window-size 5m \
   --evaluation-frequency 1m

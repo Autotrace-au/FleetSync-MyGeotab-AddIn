@@ -1,8 +1,8 @@
-# FleetSync MyGeotab Add-In - Deployment Guide
+# FleetBridge MyGeotab Add-In - Deployment Guide
 
 ## Overview
 
-The FleetSync MyGeotab Add-In now uses a **Python Azure Function** to update device properties. This was necessary because the MyGeotab JavaScript SDK has persistent issues with updating custom properties (JsonSerializerException errors).
+The FleetBridge MyGeotab Add-In now uses a **Python Azure Function** to update device properties. This was necessary because the MyGeotab JavaScript SDK has persistent issues with updating custom properties (JsonSerializerException errors).
 
 ## Architecture
 
@@ -33,7 +33,7 @@ az login
 
 ```bash
 az group create \
-  --name FleetSyncRG \
+  --name FleetBridgeRG \
   --location australiaeast
 ```
 
@@ -41,8 +41,8 @@ az group create \
 
 ```bash
 az storage account create \
-  --name fleetsyncstore \
-  --resource-group FleetSyncRG \
+  --name fleetbridgestore \
+  --resource-group FleetBridgeRG \
   --location australiaeast \
   --sku Standard_LRS
 ```
@@ -51,13 +51,13 @@ az storage account create \
 
 ```bash
 az functionapp create \
-  --resource-group FleetSyncRG \
+  --resource-group FleetBridgeRG \
   --consumption-plan-location australiaeast \
   --runtime python \
   --runtime-version 3.11 \
   --functions-version 4 \
-  --name fleetsync-mygeotab \
-  --storage-account fleetsyncstore \
+  --name fleetbridge-mygeotab \
+  --storage-account fleetbridgestore \
   --os-type Linux
 ```
 
@@ -65,7 +65,7 @@ az functionapp create \
 
 ```bash
 cd azure-function
-func azure functionapp publish fleetsync-mygeotab
+func azure functionapp publish fleetbridge-mygeotab
 ```
 
 ### 1.6 Get the Function URL and Key
@@ -73,15 +73,15 @@ func azure functionapp publish fleetsync-mygeotab
 ```bash
 # Get the function key
 az functionapp keys list \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --query "functionKeys.default" \
   --output tsv
 ```
 
 The function URL will be:
 ```
-https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties
+https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties
 ```
 
 ## Step 2: Configure CORS (Important!)
@@ -90,8 +90,8 @@ The Add-In runs in MyGeotab's domain, so we need to allow CORS:
 
 ```bash
 az functionapp cors add \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --allowed-origins "https://*.geotab.com" "https://*.geotab.com.au"
 ```
 
@@ -100,7 +100,7 @@ az functionapp cors add \
 Edit `index.html` and update these lines (around line 1671):
 
 ```javascript
-const AZURE_FUNCTION_URL = 'https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties';
+const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
 const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY_FROM_STEP_1.6';
 ```
 
@@ -118,15 +118,15 @@ Update the commit hash in `configuration.json` to point to the latest commit:
 
 ```json
 {
-    "name": "FleetSync Property Manager",
+    "name": "FleetBridge Property Manager",
     "supportEmail": "your-email@example.com",
     "version": "6.0.0",
     "items": [
         {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/LATEST_COMMIT_HASH/index.html?v=6.0",
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/LATEST_COMMIT_HASH/index.html?v=6.0",
             "path": "ActivityLink",
             "menuName": {
-                "en": "FleetSync Property Manager"
+                "en": "FleetBridge Property Manager"
             }
         }
     ]
@@ -153,8 +153,8 @@ If you see CORS errors in the console:
 ```bash
 # Add more specific origins
 az functionapp cors add \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab \
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab \
   --allowed-origins "https://goac.geotab.com.au"
 ```
 
@@ -164,8 +164,8 @@ Check the function is deployed:
 
 ```bash
 az functionapp function list \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab
 ```
 
 ### Authentication Errors
@@ -180,8 +180,8 @@ Check the console logs to see what's being sent to the function.
 
 ```bash
 az functionapp log tail \
-  --resource-group FleetSyncRG \
-  --name fleetsync-mygeotab
+  --resource-group FleetBridgeRG \
+  --name fleetbridge-mygeotab
 ```
 
 Or view logs in the Azure Portal:

@@ -10,7 +10,7 @@ from datetime import datetime
 app = func.FunctionApp()
 
 # Configuration
-KEY_VAULT_URL = os.environ.get('KEY_VAULT_URL', '')  # e.g., https://fleetsync-vault.vault.azure.net/
+KEY_VAULT_URL = os.environ.get('KEY_VAULT_URL', '')  # e.g., https://fleetbridge-vault.vault.azure.net/
 USE_KEY_VAULT = os.environ.get('USE_KEY_VAULT', 'false').lower() == 'true'
 
 # Initialize Key Vault client if enabled

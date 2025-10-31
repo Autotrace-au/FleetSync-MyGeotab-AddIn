@@ -1,6 +1,6 @@
-# FleetSync Quick Start Guide
+# FleetBridge Quick Start Guide
 
-Get your multi-tenant FleetSync system up and running in 30 minutes!
+Get your multi-tenant FleetBridge system up and running in 30 minutes!
 
 ## What You're Building
 
@@ -26,7 +26,7 @@ A production-ready SaaS system where:
 
 ```bash
 # Clone the repo (if you haven't already)
-cd /Users/sam/Git/FleetSync-MyGeotab-AddIn-1
+cd /Users/sam/Git/FleetBridge-MyGeotab-AddIn-1
 
 # Navigate to the function directory
 cd azure-function
@@ -47,9 +47,9 @@ chmod +x deploy-full-setup.sh onboard-client.sh
 - Deploys the function code
 
 **At the end, you'll get:**
-- Function URL: `https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties`
+- Function URL: `https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties`
 - Function Key: `abc123...` (save this!)
-- Key Vault URL: `https://fleetsync-vault.vault.azure.net/`
+- Key Vault URL: `https://fleetbridge-vault.vault.azure.net/`
 
 ## Step 2: Onboard Your First Client (5 minutes)
 
@@ -73,7 +73,7 @@ Edit `index.html` (lines 1671-1686):
 
 ```javascript
 // Replace these values:
-const AZURE_FUNCTION_URL = 'https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties';
+const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
 const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY_FROM_STEP_1';
 const CLIENT_API_KEY = 'YOUR_CLIENT_API_KEY_FROM_STEP_2';
 ```
@@ -96,15 +96,15 @@ Edit `configuration.json` and update the URL to use the new commit hash:
 
 ```json
 {
-    "name": "FleetSync Property Manager",
+    "name": "FleetBridge Property Manager",
     "supportEmail": "support@yourcompany.com",
     "version": "6.1.0",
     "items": [
         {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetSync-MyGeotab-AddIn/YOUR_COMMIT_HASH/index.html?v=6.1",
+            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/YOUR_COMMIT_HASH/index.html?v=6.1",
             "path": "ActivityLink",
             "menuName": {
-                "en": "FleetSync Property Manager"
+                "en": "FleetBridge Property Manager"
             }
         }
     ]
@@ -123,7 +123,7 @@ git push origin main
 ### Test 1: Health Check
 
 ```bash
-curl https://fleetsync-mygeotab.azurewebsites.net/api/health
+curl https://fleetbridge-mygeotab.azurewebsites.net/api/health
 ```
 
 **Expected response:**
@@ -138,7 +138,7 @@ curl https://fleetsync-mygeotab.azurewebsites.net/api/health
 ### Test 2: Update Device Properties
 
 ```bash
-curl -X POST "https://fleetsync-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY" \
+curl -X POST "https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "apiKey": "YOUR_CLIENT_API_KEY",
@@ -164,7 +164,7 @@ curl -X POST "https://fleetsync-mygeotab.azurewebsites.net/api/update-device-pro
 
 1. **Remove old Add-In** (if you had one installed):
    - Go to System > System Settings > Add-Ins
-   - Remove "FleetSync Property Manager"
+   - Remove "FleetBridge Property Manager"
 
 2. **Add new Add-In**:
    - Click "New Add-In"
@@ -172,7 +172,7 @@ curl -X POST "https://fleetsync-mygeotab.azurewebsites.net/api/update-device-pro
    - Click "Add"
 
 3. **Test the Add-In**:
-   - Click "FleetSync Property Manager" in the menu
+   - Click "FleetBridge Property Manager" in the menu
    - Go to "Manage Assets" tab
    - Click "Load Assets"
    - Create a test group
@@ -206,7 +206,7 @@ cd azure-function
 ### View Usage Logs
 
 ```bash
-az functionapp log tail --resource-group FleetSyncRG --name fleetsync-mygeotab
+az functionapp log tail --resource-group FleetBridgeRG --name fleetbridge-mygeotab
 ```
 
 ### Query Usage for Billing
@@ -246,10 +246,10 @@ traces
 
 ### Function returns 401 Unauthorized
 - Check that API key is correct
-- Verify API key exists in Key Vault: `az keyvault secret list --vault-name fleetsync-vault`
+- Verify API key exists in Key Vault: `az keyvault secret list --vault-name fleetbridge-vault`
 
 ### Function returns 500 Internal Server Error
-- Check logs: `az functionapp log tail --resource-group FleetSyncRG --name fleetsync-mygeotab`
+- Check logs: `az functionapp log tail --resource-group FleetBridgeRG --name fleetbridge-mygeotab`
 - Verify MyGeotab credentials are correct
 
 ### Add-In not loading

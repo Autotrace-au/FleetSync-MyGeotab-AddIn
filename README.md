@@ -1,14 +1,14 @@
-# FleetSync Property Manager - MyGeotab Add-In
+# FleetBridge Property Manager - MyGeotab Add-In
 
-A MyGeotab Add-In that manages custom properties required for the FleetSync automation system.
+A MyGeotab Add-In that manages custom properties required for the FleetBridge automation system.
 
-## About FleetSync
+## About FleetBridge
 
-FleetSync creates and configures Exchange equipment mailboxes for vehicles and trailers, sourced from MyGeotab assets, using an Azure Automation runbook orchestrator. This allows staff to book cars and trailers directly in Outlook.
+FleetBridge creates and configures Exchange equipment mailboxes for vehicles and trailers, sourced from MyGeotab assets, using an Azure Automation runbook orchestrator. This allows staff to book cars and trailers directly in Outlook.
 
 ## What This Add-In Does
 
-This Add-In automatically creates and manages the custom properties in MyGeotab that the FleetSync orchestrator requires:
+This Add-In automatically creates and manages the custom properties in MyGeotab that the FleetBridge orchestrator requires:
 
 - **Is this a bookable resource** - Controls whether the equipment mailbox accepts bookings
 - **Asset Stored Location** - Physical location where the asset is stored
@@ -26,16 +26,16 @@ This Add-In automatically creates and manages the custom properties in MyGeotab 
 3. Click **New Add-In**
 4. Paste this URL:
    ```
-   https://cdn.jsdelivr.net/gh/Autotrace-au/FleetSync-MyGeotab-AddIn@main/configuration.json
+   https://cdn.jsdelivr.net/gh/Autotrace-au/FleetBridge-MyGeotab-AddIn@main/configuration.json
    ```
 5. Click **Save**
 6. Refresh your browser
 
-The Add-In will appear under **Administration → FleetSync Properties**
+The Add-In will appear under **Administration → FleetBridge Properties**
 
 ## Usage
 
-1. Navigate to **Administration → FleetSync Properties**
+1. Navigate to **Administration → FleetBridge Properties**
 2. Click **Check Properties** to scan for existing custom properties
 3. If any required properties are missing, click **Create Missing Properties**
 4. The Add-In will create all missing properties automatically
@@ -59,7 +59,7 @@ For issues or questions, contact: sam@garageofawesome.com.au
 
 ## Related Projects
 
-- [AHC-AssetCreator](https://github.com/Autotrace-au/AHC-AssetCreator) - The main FleetSync orchestrator repository
+- [AHC-AssetCreator](https://github.com/Autotrace-au/AHC-AssetCreator) - The main FleetBridge orchestrator repository
 
 ## Licence
 

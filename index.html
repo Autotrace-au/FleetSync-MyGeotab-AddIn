@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FleetSync Property Manager</title>
+    <title>FleetBridge Property Manager</title>
 </head>
 <body>
     <script>
@@ -190,8 +190,8 @@
     <div class="container">
         <header>
             <div class="header-content">
-                <h1>FleetSync Property Manager</h1>
-                <p class="subtitle">Manage custom properties for FleetSync equipment mailbox automation</p>
+                <h1>FleetBridge Property Manager</h1>
+                <p class="subtitle">Manage custom properties for FleetBridge equipment mailbox automation</p>
             </div>
         </header>
 
@@ -214,7 +214,7 @@
         <section class="properties-section">
             <h2>Required Custom Properties</h2>
             <p class="info-text">
-                These custom properties are required by the FleetSync orchestrator to manage Exchange equipment mailboxes.
+                These custom properties are required by the FleetBridge orchestrator to manage Exchange equipment mailboxes.
                 Click "Check Properties" to verify which properties exist, then "Create Missing Properties" to add any that are missing.
             </p>
 
@@ -367,14 +367,14 @@
         </section>
 
         <section class="help-section">
-            <h2>About FleetSync</h2>
+            <h2>About FleetBridge</h2>
             <p>
-                FleetSync creates and configures Exchange equipment mailboxes for vehicles and trailers, 
+                FleetBridge creates and configures Exchange equipment mailboxes for vehicles and trailers, 
                 sourced from MyGeotab assets, using an Azure Automation runbook orchestrator so staff can 
                 book cars and trailers in Outlook.
             </p>
             <p>
-                These custom properties allow the FleetSync orchestrator to:
+                These custom properties allow the FleetBridge orchestrator to:
             </p>
             <ul>
                 <li>Control booking availability and permissions</li>
@@ -384,7 +384,7 @@
             </ul>
             <p class="help-link">
                 For more information, visit the 
-                <a href="https://github.com/Autotrace-au/AHC-AssetCreator" target="_blank">FleetSync repository</a>.
+                <a href="https://github.com/Autotrace-au/AHC-AssetCreator" target="_blank">FleetBridge repository</a>.
             </p>
         </section>
         </div>
@@ -468,7 +468,7 @@
             <section class="properties-section">
                 <h2>Azure Automation Configuration</h2>
                 <p class="info-text">
-                    Enter the webhook URL from your Azure Automation runbook. This webhook will be called to trigger the FleetSync Orchestrator script that synchronises MyGeotab devices with Exchange equipment mailboxes.
+                    Enter the webhook URL from your Azure Automation runbook. This webhook will be called to trigger the FleetBridge Orchestrator script that synchronises MyGeotab devices with Exchange equipment mailboxes.
                 </p>
 
                 <div class="property-item">
@@ -481,7 +481,7 @@
                         </div>
                         <div>
                             <h3>Webhook URL</h3>
-                            <p>Azure Automation webhook endpoint for FleetSync Orchestrator</p>
+                            <p>Azure Automation webhook endpoint for FleetBridge Orchestrator</p>
                         </div>
                     </div>
                     <input type="text" id="webhookUrl" placeholder="https://your-webhook-url.azure-automation.net/webhooks?token=..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
@@ -502,7 +502,7 @@
             <section class="properties-section">
                 <h2>Manual Synchronisation</h2>
                 <p class="info-text">
-                    Trigger an immediate synchronisation between MyGeotab devices and Exchange equipment mailboxes. This will run the FleetSync Orchestrator script via the configured webhook.
+                    Trigger an immediate synchronisation between MyGeotab devices and Exchange equipment mailboxes. This will run the FleetBridge Orchestrator script via the configured webhook.
                 </p>
 
                 <div style="margin-bottom: 16px; padding: 12px; background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; font-size: 13px; color: #92400e;">
@@ -702,7 +702,7 @@
 
     <script>
         /**
-         * FleetSync Property Manager Add-In
+         * FleetBridge Property Manager Add-In
          */
         (function() {
             // Ensure geotab object exists
@@ -886,7 +886,7 @@
                     return;
                 }
 
-                updateStatus('Creating FleetSync PropertySet...', 'info');
+                updateStatus('Creating FleetBridge PropertySet...', 'info');
                 const createBtn = document.getElementById('createPropertiesBtn');
                 if (createBtn) createBtn.disabled = true;
 
@@ -894,19 +894,19 @@
                 let errorCount = 0;
 
                 try {
-                    // First, check if FleetSync PropertySet exists
+                    // First, check if FleetBridge PropertySet exists
                     let propertySet;
                     try {
                         const propertySets = await new Promise((resolve, reject) => {
                             api.call('Get', {
                                 typeName: 'PropertySet',
-                                search: { name: 'FleetSync Properties' }
+                                search: { name: 'FleetBridge Properties' }
                             }, resolve, reject);
                         });
 
                         if (propertySets && propertySets.length > 0) {
                             propertySet = propertySets[0];
-                            console.log('Found existing FleetSync PropertySet:', propertySet);
+                            console.log('Found existing FleetBridge PropertySet:', propertySet);
                         }
                     } catch (error) {
                         console.log('PropertySet not found, will create new one');
@@ -914,11 +914,11 @@
 
                     // Create PropertySet if it doesn't exist
                     if (!propertySet) {
-                        updateStatus('Creating FleetSync PropertySet...', 'info');
+                        updateStatus('Creating FleetBridge PropertySet...', 'info');
                         try {
                             const propertySetEntity = {
-                                name: 'FleetSync Properties',
-                                description: 'Custom properties for FleetSync equipment mailbox automation'
+                                name: 'FleetBridge Properties',
+                                description: 'Custom properties for FleetBridge equipment mailbox automation'
                             };
 
                             propertySet = await new Promise((resolve, reject) => {

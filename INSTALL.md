@@ -7,7 +7,7 @@
 3. Click **New Add-In**
 4. Paste this URL:
    ```
-   https://cdn.jsdelivr.net/gh/Autotrace-au/FleetSync-MyGeotab-AddIn@main/configuration.json
+   https://cdn.jsdelivr.net/gh/Autotrace-au/FleetBridge-MyGeotab-AddIn@main/configuration.json
    ```
 5. Click **Save**
 6. Refresh your browser (Ctrl+Shift+R or Cmd+Shift+R)
@@ -16,7 +16,7 @@
 
 After installation, the Add-In will appear in the MyGeotab menu:
 
-**Administration → FleetSync Properties**
+**Administration → FleetBridge Properties**
 
 ## First Use
 
