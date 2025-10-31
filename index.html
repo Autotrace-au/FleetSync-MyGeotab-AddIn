@@ -1788,18 +1788,18 @@
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
 
                 // Get configuration from localStorage
-                const azureFunctionUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl') || AZURE_FUNCTION_URL;
-                const azureFunctionKey = localStorage.getItem('fleetBridgeAzureFunctionKey') || AZURE_FUNCTION_KEY;
-                const clientApiKey = localStorage.getItem('fleetBridgeClientApiKey') || CLIENT_API_KEY;
+                const azureFunctionUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl');
+                const azureFunctionKey = localStorage.getItem('fleetBridgeAzureFunctionKey');
+                const clientApiKey = localStorage.getItem('fleetBridgeClientApiKey');
 
                 console.log('Auth mode:', clientApiKey ? 'API Key' : 'Direct Credentials');
 
                 // Validate configuration
-                if (!azureFunctionUrl || azureFunctionUrl === 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties') {
+                if (!azureFunctionUrl) {
                     throw new Error('Azure Function URL not configured. Please configure it in the "Sync to Exchange" tab.');
                 }
 
-                if (!azureFunctionKey || azureFunctionKey === 'YOUR_FUNCTION_KEY') {
+                if (!azureFunctionKey) {
                     throw new Error('Azure Function Key not configured. Please configure it in the "Sync to Exchange" tab.');
                 }
 
