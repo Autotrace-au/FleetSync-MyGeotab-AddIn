@@ -1804,7 +1804,21 @@
                         api.call('Set', {
                             typeName: 'Device',
                             entity: minimalDevice
-                        }, resolve, reject);
+                        }, resolve, (error) => {
+                            console.error('\n=== SET OPERATION FAILED ===');
+                            console.error('Error object:', error);
+                            if (error.ajax && error.ajax.failedRequest) {
+                                console.error('Failed request:', error.ajax.failedRequest);
+                                console.error('Failed request params:', JSON.stringify(error.ajax.failedRequest.params, null, 2));
+                            }
+                            if (error.ajax && error.ajax.response) {
+                                console.error('Response:', error.ajax.response);
+                                if (error.ajax.response.error) {
+                                    console.error('Response error details:', error.ajax.response.error);
+                                }
+                            }
+                            reject(error);
+                        });
                     });
 
                     console.log('Set operation result:', result);
