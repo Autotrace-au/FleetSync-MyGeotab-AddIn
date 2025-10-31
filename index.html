@@ -1808,12 +1808,10 @@
                     console.log('Updated customProperties length:', cleanDevice.customProperties.length);
                     console.log('Sample property:', JSON.stringify(cleanDevice.customProperties[0], null, 2));
 
-                    console.log('\nStep 6: Calling Set on Device entity...');
+                    console.log('\nStep 6: Calling api.set() method...');
                     const result = await new Promise((resolve, reject) => {
-                        api.call('Set', {
-                            typeName: 'Device',
-                            entity: cleanDevice
-                        }, resolve, (error) => {
+                        // Try using api.set() instead of api.call('Set', ...)
+                        api.set('Device', cleanDevice, resolve, (error) => {
                             console.error('\n=== SET OPERATION FAILED ===');
                             console.error('Error object:', error);
                             if (error.ajax && error.ajax.failedRequest) {
