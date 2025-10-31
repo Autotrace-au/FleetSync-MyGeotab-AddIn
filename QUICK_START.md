@@ -15,7 +15,11 @@ A production-ready SaaS system where:
 
 1. **Azure Subscription** - You'll need an active Azure subscription
 2. **Azure CLI** - Install: `brew install azure-cli`
-3. **Azure Functions Core Tools** - Install: `brew install azure-functions-core-tools@4`
+3. **Azure Functions Core Tools** - Install:
+   ```bash
+   brew tap azure/functions
+   brew install azure-functions-core-tools@4
+   ```
 4. **Python 3.11** - Install: `brew install python@3.11`
 
 ## Step 1: Deploy the Azure Function (10 minutes)
