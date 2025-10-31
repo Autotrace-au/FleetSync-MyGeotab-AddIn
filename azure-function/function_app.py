@@ -1,20 +1,76 @@
 import azure.functions as func
 import logging
 import json
+import os
 from mygeotab import API
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
+from datetime import datetime
 
 app = func.FunctionApp()
+
+# Configuration
+KEY_VAULT_URL = os.environ.get('KEY_VAULT_URL', '')  # e.g., https://fleetsync-vault.vault.azure.net/
+USE_KEY_VAULT = os.environ.get('USE_KEY_VAULT', 'false').lower() == 'true'
+
+# Initialize Key Vault client if enabled
+key_vault_client = None
+if USE_KEY_VAULT and KEY_VAULT_URL:
+    try:
+        credential = DefaultAzureCredential()
+        key_vault_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
+        logging.info('Key Vault client initialized')
+    except Exception as e:
+        logging.error(f'Failed to initialize Key Vault client: {e}')
+
+def get_client_credentials(api_key=None, database=None, username=None, password=None):
+    """
+    Get client credentials either from Key Vault (using API key) or from request parameters.
+
+    Returns: (database, username, password) tuple or None if not found
+    """
+    if USE_KEY_VAULT and api_key and key_vault_client:
+        # Get credentials from Key Vault using API key
+        try:
+            # Store credentials in Key Vault with naming convention: client-{api_key}-database, etc.
+            database_secret = key_vault_client.get_secret(f'client-{api_key}-database')
+            username_secret = key_vault_client.get_secret(f'client-{api_key}-username')
+            password_secret = key_vault_client.get_secret(f'client-{api_key}-password')
+
+            return (database_secret.value, username_secret.value, password_secret.value)
+        except Exception as e:
+            logging.error(f'Failed to get credentials from Key Vault for API key {api_key}: {e}')
+            return None
+    else:
+        # Fallback: Get credentials from request parameters (for testing or migration)
+        if database and username and password:
+            return (database, username, password)
+        return None
+
+def log_usage(database, operation, success, execution_time_ms, api_key=None):
+    """
+    Log usage for billing and monitoring.
+    """
+    usage_log = {
+        'timestamp': datetime.utcnow().isoformat(),
+        'database': database,
+        'apiKey': api_key if api_key else 'direct-auth',
+        'operation': operation,
+        'success': success,
+        'execution_time_ms': execution_time_ms
+    }
+    logging.info(f'USAGE: {json.dumps(usage_log)}')
 
 @app.route(route="update-device-properties", auth_level=func.AuthLevel.FUNCTION)
 def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
     """
     Azure Function to update MyGeotab device custom properties.
-    
-    Expected JSON body:
+
+    Supports two authentication modes:
+
+    Mode 1 - API key (recommended for production):
     {
-        "database": "database_name",
-        "username": "user@example.com",
-        "password": "password",
+        "apiKey": "client-api-key-here",
         "deviceId": "b1",
         "properties": {
             "bookable": true,
@@ -27,26 +83,53 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
             "language": "en-AU"
         }
     }
+
+    Mode 2 - Direct credentials (for testing/migration):
+    {
+        "database": "database_name",
+        "username": "user@example.com",
+        "password": "password",
+        "deviceId": "b1",
+        "properties": {...}
+    }
     """
+    start_time = datetime.utcnow()
     logging.info('Update device properties function triggered')
-    
+
     try:
         # Parse request body
         req_body = req.get_json()
-        
-        # Extract parameters
+
+        # Get credentials (either from Key Vault or request)
+        api_key = req_body.get('apiKey')
         database = req_body.get('database')
         username = req_body.get('username')
         password = req_body.get('password')
-        device_id = req_body.get('deviceId')
-        properties = req_body.get('properties')
-        
-        # Validate required parameters
-        if not all([database, username, password, device_id, properties]):
+
+        credentials = get_client_credentials(api_key, database, username, password)
+
+        if not credentials:
             return func.HttpResponse(
                 json.dumps({
                     "success": False,
-                    "error": "Missing required parameters"
+                    "error": "Invalid credentials or API key"
+                }),
+                status_code=401,
+                mimetype="application/json"
+            )
+
+        database, username, password = credentials
+
+        # Get other parameters
+        device_id = req_body.get('deviceId')
+        properties = req_body.get('properties')
+
+        # Validate required parameters
+        if not all([device_id, properties]):
+            return func.HttpResponse(
+                json.dumps({
+                    "success": False,
+                    "error": "Missing required parameters: deviceId, properties"
                 }),
                 status_code=400,
                 mimetype="application/json"
@@ -149,20 +232,32 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
         # Call Set to update the device
         logging.info('Calling Set to update device')
         api.set('Device', device)
-        
+
         logging.info('Device updated successfully')
-        
+
+        # Log usage for billing
+        execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        log_usage(database, 'update-device-properties', True, execution_time, api_key)
+
         return func.HttpResponse(
             json.dumps({
                 "success": True,
-                "message": f"Device {device.get('name')} updated successfully"
+                "message": f"Device {device.get('name')} updated successfully",
+                "database": database,
+                "deviceId": device_id
             }),
             status_code=200,
             mimetype="application/json"
         )
-        
+
     except Exception as e:
         logging.error(f'Error updating device: {str(e)}', exc_info=True)
+
+        # Log failed usage
+        execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        if 'database' in locals():
+            log_usage(database, 'update-device-properties', False, execution_time, api_key if 'api_key' in locals() else None)
+
         return func.HttpResponse(
             json.dumps({
                 "success": False,
@@ -171,4 +266,19 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500,
             mimetype="application/json"
         )
+
+@app.route(route="health", auth_level=func.AuthLevel.ANONYMOUS)
+def health_check(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Health check endpoint for monitoring.
+    """
+    return func.HttpResponse(
+        json.dumps({
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "keyVaultEnabled": USE_KEY_VAULT
+        }),
+        status_code=200,
+        mimetype="application/json"
+    )
 

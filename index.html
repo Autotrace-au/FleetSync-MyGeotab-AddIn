@@ -1672,27 +1672,58 @@
             const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY';
 
             /**
-             * Update device properties (v6.0 - Azure Function)
+             * Client API Key Configuration
+             *
+             * Option 1 - Single API Key (for single-client deployments):
+             * Set CLIENT_API_KEY to the client's API key. The Add-In will use this for all requests.
+             *
+             * Option 2 - No API Key (for testing or direct credentials):
+             * Leave CLIENT_API_KEY as null. The Add-In will send MyGeotab credentials with each request.
+             *
+             * Option 3 - Per-Client Add-In (for multi-tenant SaaS):
+             * Create a separate version of this Add-In for each client with their unique API key.
+             */
+            const CLIENT_API_KEY = null;  // Set to client's API key or leave as null
+
+            /**
+             * Update device properties (v6.0 - Azure Function with Multi-Tenant Support)
              * Uses Python Azure Function to update properties via MyGeotab Python SDK
              * This avoids the JsonSerializerException issues with the JavaScript SDK
+             *
+             * Supports two authentication modes:
+             * 1. API Key (recommended): CLIENT_API_KEY is set
+             * 2. Direct credentials (testing): CLIENT_API_KEY is null
              */
             async function updateDeviceProperties(deviceId, properties) {
-                console.log('=== updateDeviceProperties START (v6.0 - Azure Function) ===');
+                console.log('=== updateDeviceProperties START (v6.0 - Multi-Tenant) ===');
                 console.log('Device ID:', deviceId);
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
+                console.log('Auth mode:', CLIENT_API_KEY ? 'API Key' : 'Direct Credentials');
 
                 try {
-                    // Get MyGeotab credentials from the current session
-                    const credentials = api.getSession();
+                    let payload;
 
-                    // Prepare request payload
-                    const payload = {
-                        database: credentials.database,
-                        username: credentials.userName,
-                        password: credentials.sessionId, // Use session ID instead of password
-                        deviceId: deviceId,
-                        properties: properties
-                    };
+                    if (CLIENT_API_KEY) {
+                        // Mode 1: API Key authentication
+                        payload = {
+                            apiKey: CLIENT_API_KEY,
+                            deviceId: deviceId,
+                            properties: properties
+                        };
+                        console.log('Using API key authentication');
+                    } else {
+                        // Mode 2: Direct credentials (for testing/migration)
+                        const credentials = api.getSession();
+                        payload = {
+                            database: credentials.database,
+                            username: credentials.userName,
+                            password: credentials.sessionId, // Use session ID instead of password
+                            deviceId: deviceId,
+                            properties: properties
+                        };
+                        console.log('Using direct credentials authentication');
+                        console.log('Database:', credentials.database);
+                    }
 
                     console.log('Calling Azure Function...');
                     console.log('URL:', AZURE_FUNCTION_URL);
