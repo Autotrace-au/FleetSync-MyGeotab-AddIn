@@ -466,6 +466,80 @@
             </section>
 
             <section class="properties-section">
+                <h2>Azure Function Configuration</h2>
+                <p class="info-text">
+                    Configure your Azure Function endpoint and authentication. The function key is required to securely update device properties via the FleetBridge Azure Function.
+                </p>
+
+                <div class="property-item">
+                    <div class="property-info">
+                        <div class="property-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Function URL</h3>
+                            <p>Azure Function endpoint for updating device properties</p>
+                        </div>
+                    </div>
+                    <input type="text" id="azureFunctionUrl" placeholder="https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
+                </div>
+
+                <div class="property-item" style="margin-top: 16px;">
+                    <div class="property-info">
+                        <div class="property-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Function Key</h3>
+                            <p>Authentication key for the Azure Function (stored securely in browser)</p>
+                        </div>
+                    </div>
+                    <input type="password" id="azureFunctionKey" placeholder="Enter your Azure Function key..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
+                </div>
+
+                <div class="property-item" style="margin-top: 16px;">
+                    <div class="property-info">
+                        <div class="property-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Client API Key (Optional)</h3>
+                            <p>For multi-tenant deployments - leave blank to use direct MyGeotab credentials</p>
+                        </div>
+                    </div>
+                    <input type="password" id="clientApiKey" placeholder="Optional: Enter your client API key..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
+                </div>
+
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <button id="saveAzureFunctionConfigBtn" class="btn btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Save Configuration
+                    </button>
+                    <button id="testAzureFunctionBtn" class="btn btn-secondary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        Test Connection
+                    </button>
+                </div>
+
+                <div id="azureFunctionTestResult" style="margin-top: 16px; display: none;"></div>
+            </section>
+
+            <section class="properties-section">
                 <h2>Azure Automation Configuration</h2>
                 <p class="info-text">
                     Enter the webhook URL from your Azure Automation runbook. This webhook will be called to trigger the FleetBridge Orchestrator script that synchronises MyGeotab devices with Exchange equipment mailboxes.
@@ -771,6 +845,8 @@
                 const saveEditGroupBtn = document.getElementById('saveEditGroupBtn');
                 const confirmAssignGroupBtn = document.getElementById('confirmAssignGroupBtn');
                 const saveAllAssetsBtn = document.getElementById('saveAllAssetsBtn');
+                const saveAzureFunctionConfigBtn = document.getElementById('saveAzureFunctionConfigBtn');
+                const testAzureFunctionBtn = document.getElementById('testAzureFunctionBtn');
                 const saveWebhookBtn = document.getElementById('saveWebhookBtn');
                 const triggerSyncBtn = document.getElementById('triggerSyncBtn');
 
@@ -783,6 +859,8 @@
                 if (saveEditGroupBtn) saveEditGroupBtn.addEventListener('click', saveEditGroup);
                 if (confirmAssignGroupBtn) confirmAssignGroupBtn.addEventListener('click', assignAssetToGroup);
                 if (saveAllAssetsBtn) saveAllAssetsBtn.addEventListener('click', saveAllAssets);
+                if (saveAzureFunctionConfigBtn) saveAzureFunctionConfigBtn.addEventListener('click', saveAzureFunctionConfig);
+                if (testAzureFunctionBtn) testAzureFunctionBtn.addEventListener('click', testAzureFunctionConnection);
                 if (saveWebhookBtn) saveWebhookBtn.addEventListener('click', saveWebhookUrl);
                 if (triggerSyncBtn) triggerSyncBtn.addEventListener('click', triggerSync);
 
@@ -791,7 +869,8 @@
                     button.addEventListener('click', () => switchTab(button.dataset.tab));
                 });
 
-                // Load saved webhook URL on init
+                // Load saved configuration on init
+                loadAzureFunctionConfig();
                 loadWebhookUrl();
             }
 
@@ -1693,27 +1772,44 @@
             const CLIENT_API_KEY = null;  // Set to client's API key or leave as null
 
             /**
-             * Update device properties (v6.0 - Azure Function with Multi-Tenant Support)
+             * Update device properties (v6.1 - Azure Function with User Configuration)
              * Uses Python Azure Function to update properties via MyGeotab Python SDK
              * This avoids the JsonSerializerException issues with the JavaScript SDK
              *
+             * Configuration is loaded from localStorage (set in Sync to Exchange tab)
+             *
              * Supports two authentication modes:
-             * 1. API Key (recommended): CLIENT_API_KEY is set
-             * 2. Direct credentials (testing): CLIENT_API_KEY is null
+             * 1. API Key (recommended): Client API Key is configured
+             * 2. Direct credentials (testing): No Client API Key configured
              */
             async function updateDeviceProperties(deviceId, properties) {
-                console.log('=== updateDeviceProperties START (v6.0 - Multi-Tenant) ===');
+                console.log('=== updateDeviceProperties START (v6.1 - User Configuration) ===');
                 console.log('Device ID:', deviceId);
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
-                console.log('Auth mode:', CLIENT_API_KEY ? 'API Key' : 'Direct Credentials');
+
+                // Get configuration from localStorage
+                const azureFunctionUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl') || AZURE_FUNCTION_URL;
+                const azureFunctionKey = localStorage.getItem('fleetBridgeAzureFunctionKey') || AZURE_FUNCTION_KEY;
+                const clientApiKey = localStorage.getItem('fleetBridgeClientApiKey') || CLIENT_API_KEY;
+
+                console.log('Auth mode:', clientApiKey ? 'API Key' : 'Direct Credentials');
+
+                // Validate configuration
+                if (!azureFunctionUrl || azureFunctionUrl === 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties') {
+                    throw new Error('Azure Function URL not configured. Please configure it in the "Sync to Exchange" tab.');
+                }
+
+                if (!azureFunctionKey || azureFunctionKey === 'YOUR_FUNCTION_KEY') {
+                    throw new Error('Azure Function Key not configured. Please configure it in the "Sync to Exchange" tab.');
+                }
 
                 try {
                     let payload;
 
-                    if (CLIENT_API_KEY) {
+                    if (clientApiKey) {
                         // Mode 1: API Key authentication
                         payload = {
-                            apiKey: CLIENT_API_KEY,
+                            apiKey: clientApiKey,
                             deviceId: deviceId,
                             properties: properties
                         };
@@ -1733,11 +1829,11 @@
                     }
 
                     console.log('Calling Azure Function...');
-                    console.log('URL:', AZURE_FUNCTION_URL);
+                    console.log('URL:', azureFunctionUrl);
 
 
                     // Call Azure Function
-                    const response = await fetch(`${AZURE_FUNCTION_URL}?code=${AZURE_FUNCTION_KEY}`, {
+                    const response = await fetch(`${azureFunctionUrl}?code=${azureFunctionKey}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1777,6 +1873,123 @@
                     webhookInput.value = savedUrl;
                     if (triggerBtn) triggerBtn.disabled = false;
                 }
+            }
+
+            /**
+             * Save Azure Function configuration to localStorage
+             */
+            function saveAzureFunctionConfig() {
+                const urlInput = document.getElementById('azureFunctionUrl');
+                const keyInput = document.getElementById('azureFunctionKey');
+                const apiKeyInput = document.getElementById('clientApiKey');
+
+                const url = urlInput.value.trim();
+                const key = keyInput.value.trim();
+                const apiKey = apiKeyInput.value.trim();
+
+                if (!url) {
+                    showAzureFunctionResult('Please enter a Function URL.', 'error');
+                    return;
+                }
+
+                if (!key) {
+                    showAzureFunctionResult('Please enter a Function Key.', 'error');
+                    return;
+                }
+
+                // Basic URL validation
+                try {
+                    new URL(url);
+                } catch (e) {
+                    showAzureFunctionResult('Invalid URL format. Please enter a valid Function URL.', 'error');
+                    return;
+                }
+
+                // Save to localStorage
+                localStorage.setItem('fleetBridgeAzureFunctionUrl', url);
+                localStorage.setItem('fleetBridgeAzureFunctionKey', key);
+                if (apiKey) {
+                    localStorage.setItem('fleetBridgeClientApiKey', apiKey);
+                } else {
+                    localStorage.removeItem('fleetBridgeClientApiKey');
+                }
+
+                showAzureFunctionResult('Configuration saved successfully!', 'success');
+            }
+
+            /**
+             * Load Azure Function configuration from localStorage
+             */
+            function loadAzureFunctionConfig() {
+                const urlInput = document.getElementById('azureFunctionUrl');
+                const keyInput = document.getElementById('azureFunctionKey');
+                const apiKeyInput = document.getElementById('clientApiKey');
+
+                const savedUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl');
+                const savedKey = localStorage.getItem('fleetBridgeAzureFunctionKey');
+                const savedApiKey = localStorage.getItem('fleetBridgeClientApiKey');
+
+                if (savedUrl) urlInput.value = savedUrl;
+                if (savedKey) keyInput.value = savedKey;
+                if (savedApiKey) apiKeyInput.value = savedApiKey;
+            }
+
+            /**
+             * Test Azure Function connection
+             */
+            async function testAzureFunctionConnection() {
+                const url = document.getElementById('azureFunctionUrl').value.trim();
+                const key = document.getElementById('azureFunctionKey').value.trim();
+
+                if (!url || !key) {
+                    showAzureFunctionResult('Please enter both Function URL and Key before testing.', 'error');
+                    return;
+                }
+
+                try {
+                    showAzureFunctionResult('Testing connection...', 'info');
+
+                    // Test the health endpoint (remove /update-device-properties and add /health)
+                    const healthUrl = url.replace('/update-device-properties', '/health');
+
+                    const response = await fetch(healthUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        showAzureFunctionResult(
+                            `✅ Connection successful! Status: ${data.status}, Key Vault: ${data.keyVaultEnabled ? 'Enabled' : 'Disabled'}`,
+                            'success'
+                        );
+                    } else {
+                        showAzureFunctionResult(`❌ Connection failed: ${response.status} ${response.statusText}`, 'error');
+                    }
+                } catch (error) {
+                    showAzureFunctionResult(`❌ Connection failed: ${error.message}`, 'error');
+                }
+            }
+
+            /**
+             * Show Azure Function test result
+             */
+            function showAzureFunctionResult(message, type) {
+                const resultDiv = document.getElementById('azureFunctionTestResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = `status-message status-${type}`;
+
+                const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+                resultDiv.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>${message}</span>
+                `;
             }
 
             function saveWebhookUrl() {
