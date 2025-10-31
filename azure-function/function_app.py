@@ -93,6 +93,10 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
         "properties": {...}
     }
     """
+    # Handle preflight OPTIONS request
+    if req.method == 'OPTIONS':
+        return create_cors_response('', 200)
+
     start_time = datetime.utcnow()
     logging.info('Update device properties function triggered')
 
@@ -109,13 +113,12 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
         credentials = get_client_credentials(api_key, database, username, password)
 
         if not credentials:
-            return func.HttpResponse(
+            return create_cors_response(
                 json.dumps({
                     "success": False,
                     "error": "Invalid credentials or API key"
                 }),
-                status_code=401,
-                mimetype="application/json"
+                401
             )
 
         database, username, password = credentials
@@ -239,15 +242,14 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
         execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
         log_usage(database, 'update-device-properties', True, execution_time, api_key)
 
-        return func.HttpResponse(
+        return create_cors_response(
             json.dumps({
                 "success": True,
                 "message": f"Device {device.get('name')} updated successfully",
                 "database": database,
                 "deviceId": device_id
             }),
-            status_code=200,
-            mimetype="application/json"
+            200
         )
 
     except Exception as e:
@@ -258,27 +260,45 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
         if 'database' in locals():
             log_usage(database, 'update-device-properties', False, execution_time, api_key if 'api_key' in locals() else None)
 
-        return func.HttpResponse(
+        return create_cors_response(
             json.dumps({
                 "success": False,
                 "error": str(e)
             }),
-            status_code=500,
-            mimetype="application/json"
+            500
         )
+
+def create_cors_response(body, status_code=200):
+    """
+    Create HTTP response with CORS headers for MyGeotab domains.
+    """
+    return func.HttpResponse(
+        body,
+        status_code=status_code,
+        mimetype="application/json",
+        headers={
+            'Access-Control-Allow-Origin': '*',  # Allow all origins (Azure CORS will filter)
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '3600'
+        }
+    )
 
 @app.route(route="health", auth_level=func.AuthLevel.ANONYMOUS)
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """
     Health check endpoint for monitoring.
     """
-    return func.HttpResponse(
+    # Handle preflight OPTIONS request
+    if req.method == 'OPTIONS':
+        return create_cors_response('', 200)
+
+    return create_cors_response(
         json.dumps({
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "keyVaultEnabled": USE_KEY_VAULT
         }),
-        status_code=200,
-        mimetype="application/json"
+        200
     )
 
