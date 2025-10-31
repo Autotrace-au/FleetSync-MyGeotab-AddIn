@@ -1665,33 +1665,13 @@
             }
 
             async function updateDeviceProperties(deviceId, properties) {
-                console.log('=== updateDeviceProperties START ===');
+                console.log('=== updateDeviceProperties START (v4.9) ===');
                 console.log('Device ID:', deviceId);
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
 
                 try {
-                    // Step 1: Get all CustomProperty definitions
-                    console.log('Step 1: Fetching CustomProperty definitions...');
-                    const allProperties = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'Property'
-                        }, resolve, reject);
-                    });
-                    console.log(`Found ${allProperties.length} total properties in system`);
-                    console.log('All property names from MyGeotab:', allProperties.map(p => p.name));
-                    console.log('Expected property names from REQUIRED_PROPERTIES:', REQUIRED_PROPERTIES.map(rp => rp.name));
-
-                    // Filter to our FleetSync properties (match by name since internalName isn't returned)
-                    const fleetSyncProperties = allProperties.filter(p => {
-                        const match = REQUIRED_PROPERTIES.some(rp => rp.name === p.name);
-                        console.log(`Checking property "${p.name}": ${match ? 'MATCH' : 'no match'}`);
-                        return match;
-                    });
-                    console.log(`Found ${fleetSyncProperties.length} FleetSync properties:`,
-                        fleetSyncProperties.map(p => p.name));
-
-                    // Step 2: Get the device
-                    console.log('Step 2: Fetching device...');
+                    // Step 1: Get the device
+                    console.log('Step 1: Fetching device...');
                     const devices = await new Promise((resolve, reject) => {
                         api.call('Get', {
                             typeName: 'Device',
@@ -1706,134 +1686,65 @@
                     const device = devices[0];
                     console.log('Device retrieved:', device.name);
                     console.log('Device ID:', device.id);
-                    console.log('Existing customProperties count:', device.customProperties ? device.customProperties.length : 0);
 
-                    if (device.customProperties && device.customProperties.length > 0) {
-                        console.log('Existing customProperties structure:', JSON.stringify(device.customProperties, null, 2));
-                    }
-
-                    // Step 3: Map our property keys to internal names
+                    // Step 2: Map our property keys to display names (as they appear in MyGeotab)
                     const propNameMap = {
-                        'bookable': 'Bookable',
-                        'recurring': 'AllowRecurringBooking',
-                        'approvers': 'Approvers',
-                        'fleetManagers': 'FleetManagers',
-                        'conflicts': 'AllowConflicts',
-                        'windowDays': 'BookingWindowInDays',
-                        'maxDurationHours': 'MaximumDurationInHours',
-                        'language': 'MailboxLanguage'
+                        'bookable': 'Enable Equipment Booking',
+                        'recurring': 'Allow Recurring Bookings',
+                        'approvers': 'Booking Approvers',
+                        'fleetManagers': 'Fleet Managers',
+                        'conflicts': 'Allow Double Booking',
+                        'windowDays': 'Booking Window (Days)',
+                        'maxDurationHours': 'Maximum Booking Duration (Hours)',
+                        'language': 'Mailbox Language'
                     };
 
-                    // Step 4: Initialize customProperties array if needed
-                    if (!device.customProperties) {
-                        console.log('Initializing empty customProperties array');
-                        device.customProperties = [];
-                    }
-
-                    // Step 5: Update or create PropertyValue objects
-                    console.log('Step 3: Creating/updating PropertyValue objects...');
-
-                    // Create a map from internalName to property name for lookup
-                    const internalToDisplayName = {};
-                    REQUIRED_PROPERTIES.forEach(rp => {
-                        internalToDisplayName[rp.internalName] = rp.name;
-                    });
+                    // Step 3: Set custom properties as dynamic fields on the Device object
+                    console.log('\nStep 2: Setting custom properties as dynamic fields on Device object...');
+                    console.log('APPROACH: Custom properties are stored as dynamic fields on the Device object');
+                    console.log('We will set them using the property display names as field names');
 
                     for (const [key, value] of Object.entries(properties)) {
-                        const internalName = propNameMap[key];
-                        if (!internalName) {
+                        const propertyName = propNameMap[key];
+                        if (!propertyName) {
                             console.warn(`Unknown property key: ${key}`);
                             continue;
                         }
 
-                        console.log(`\nProcessing property: ${internalName} = ${value}`);
+                        console.log(`Setting device["${propertyName}"] = ${value}`);
+                        device[propertyName] = value;
+                    }
 
-                        // Get the display name for this property
-                        const displayName = internalToDisplayName[internalName];
-                        if (!displayName) {
-                            console.error(`Display name not found for ${internalName}`);
-                            continue;
-                        }
+                    // Step 4: Create minimal device object for Set operation
+                    // Only include id and the custom property fields
+                    console.log('\nStep 3: Creating minimal device object for Set operation...');
+                    const deviceToUpdate = {
+                        id: device.id
+                    };
 
-                        // Find the CustomProperty definition by name
-                        const propertyDef = fleetSyncProperties.find(p => p.name === displayName);
-                        if (!propertyDef) {
-                            console.error(`CustomProperty definition not found for ${displayName}`);
-                            console.error('Available properties:', fleetSyncProperties.map(p => p.name));
-                            continue;
-                        }
-                        console.log(`Found property definition: ${propertyDef.name} (ID: ${propertyDef.id})`);
-
-                        // Find existing PropertyValue in device.customProperties
-                        let propertyValue = device.customProperties.find(pv =>
-                            pv.property && pv.property.id === propertyDef.id
-                        );
-
-                        if (propertyValue) {
-                            console.log(`Found existing PropertyValue, updating: ${propertyValue.value} -> ${value}`);
-                            propertyValue.value = value;
-                        } else {
-                            console.log(`PropertyValue not found, creating new one for ${displayName}`);
-                            // Create new PropertyValue object with the same structure as existing ones
-                            const newPropertyValue = {
-                                property: {
-                                    id: propertyDef.id
-                                },
-                                value: value
-                            };
-                            device.customProperties.push(newPropertyValue);
-                            console.log('Added new PropertyValue:', JSON.stringify(newPropertyValue, null, 2));
+                    // Copy over the custom property fields
+                    for (const [key, value] of Object.entries(properties)) {
+                        const propertyName = propNameMap[key];
+                        if (propertyName) {
+                            deviceToUpdate[propertyName] = value;
                         }
                     }
 
-                    console.log('\nStep 4: Final customProperties array:');
-                    console.log(JSON.stringify(device.customProperties, null, 2));
+                    console.log('Device object to update:', JSON.stringify(deviceToUpdate, null, 2));
 
-                    // Step 5: Save property values using Add method for PropertyValue entities
-                    console.log('\nStep 5: Saving property values using Add method...');
-                    console.log('NOTE: customProperties is read-only on Device entity, must use PropertyValue entity instead');
+                    // Step 5: Call Set on Device entity
+                    console.log('\nStep 4: Calling Set on Device entity...');
+                    const result = await new Promise((resolve, reject) => {
+                        api.call('Set', {
+                            typeName: 'Device',
+                            entity: deviceToUpdate
+                        }, resolve, reject);
+                    });
 
-                    // For each property, create a PropertyValue entity and use Add method
-                    const addPromises = [];
-                    for (const pv of device.customProperties) {
-                        if (pv.value !== undefined) {
-                            console.log(`Adding PropertyValue for ${pv.property.name}: ${pv.value}`);
+                    console.log('Set operation result:', result);
 
-                            const propertyValueEntity = {
-                                property: {
-                                    id: pv.property.id
-                                },
-                                device: {
-                                    id: device.id
-                                },
-                                value: pv.value
-                            };
-
-                            console.log('PropertyValue entity:', JSON.stringify(propertyValueEntity, null, 2));
-
-                            addPromises.push(
-                                new Promise((resolve, reject) => {
-                                    api.call('Add', {
-                                        typeName: 'PropertyValue',
-                                        entity: propertyValueEntity
-                                    }, resolve, reject);
-                                }).then(result => {
-                                    console.log(`PropertyValue added successfully for ${pv.property.name}:`, result);
-                                    return result;
-                                }).catch(error => {
-                                    console.error(`Error adding PropertyValue for ${pv.property.name}:`, error);
-                                    throw error;
-                                })
-                            );
-                        }
-                    }
-
-                    console.log(`Waiting for ${addPromises.length} PropertyValue Add operations...`);
-                    const results = await Promise.all(addPromises);
-                    console.log('All PropertyValue entities added successfully:', results);
-
-                    // Step 7: Verify the save by fetching the device again
-                    console.log('\nStep 6: Verifying save by fetching device again...');
+                    // Step 6: Verify the save by fetching the device again
+                    console.log('\nStep 5: Verifying save by fetching device again...');
                     const verifyDevices = await new Promise((resolve, reject) => {
                         api.call('Get', {
                             typeName: 'Device',
@@ -1843,20 +1754,40 @@
 
                     if (verifyDevices && verifyDevices.length > 0) {
                         const verifiedDevice = verifyDevices[0];
-                        console.log('Verified customProperties count:', verifiedDevice.customProperties ? verifiedDevice.customProperties.length : 0);
+                        console.log('Verified device retrieved');
+
+                        // Check each property value
+                        console.log('\nVerifying property values:');
+                        for (const [key, expectedValue] of Object.entries(properties)) {
+                            const propertyName = propNameMap[key];
+                            if (propertyName) {
+                                const actualValue = verifiedDevice[propertyName];
+                                const match = actualValue === expectedValue;
+                                console.log(`  ${propertyName}: ${actualValue} ${match ? '✓' : '✗ (expected: ' + expectedValue + ')'}`);
+                            }
+                        }
+
+                        // Also check customProperties array
                         if (verifiedDevice.customProperties && verifiedDevice.customProperties.length > 0) {
-                            console.log('Verified customProperties:', JSON.stringify(verifiedDevice.customProperties, null, 2));
-                        } else {
-                            console.error('WARNING: Device has no customProperties after save!');
+                            console.log('\nVerified customProperties array:');
+                            verifiedDevice.customProperties.forEach(pv => {
+                                if (pv.property && pv.value !== undefined) {
+                                    console.log(`  ${pv.property.name}: ${pv.value}`);
+                                }
+                            });
                         }
                     }
 
-                    console.log('=== updateDeviceProperties SUCCESS ===');
+                    console.log('\n=== updateDeviceProperties SUCCESS ===');
 
                 } catch (error) {
-                    console.error('=== updateDeviceProperties ERROR ===');
+                    console.error('\n=== updateDeviceProperties ERROR ===');
                     console.error('Error:', error);
-                    console.error('Error details:', JSON.stringify(error, null, 2));
+                    console.error('Error name:', error.name);
+                    console.error('Error message:', error.message);
+                    if (error.data) {
+                        console.error('Error data:', JSON.stringify(error.data, null, 2));
+                    }
                     throw error;
                 }
             }
