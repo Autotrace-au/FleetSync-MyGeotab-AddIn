@@ -1763,25 +1763,25 @@
                             pv.property && pv.property.id === propInfo.id
                         );
 
+                        // Create minimal PropertyValue structure (only id and propertySet.id)
+                        const propertyValue = {
+                            property: {
+                                id: propInfo.id,
+                                propertySet: {
+                                    id: propInfo.setId
+                                }
+                            },
+                            value: value
+                        };
+
                         if (existingIndex >= 0) {
-                            // Update existing PropertyValue - preserve the full property object, only change value
-                            console.log(`Found existing PropertyValue at index ${existingIndex}, updating value only...`);
-                            updatedCustomProperties[existingIndex] = {
-                                ...updatedCustomProperties[existingIndex],
-                                value: value
-                            };
+                            // Update existing PropertyValue
+                            console.log(`Found existing PropertyValue at index ${existingIndex}, updating...`);
+                            updatedCustomProperties[existingIndex] = propertyValue;
                         } else {
-                            // Add new PropertyValue - need to fetch the full Property object
+                            // Add new PropertyValue
                             console.log(`No existing PropertyValue found, adding new one...`);
-                            const fullProperty = fleetSyncProps.find(p => p.id === propInfo.id);
-                            if (fullProperty) {
-                                updatedCustomProperties.push({
-                                    property: fullProperty,
-                                    value: value
-                                });
-                            } else {
-                                console.warn(`Could not find full property object for ${propInfo.name}`);
-                            }
+                            updatedCustomProperties.push(propertyValue);
                         }
                     }
 
