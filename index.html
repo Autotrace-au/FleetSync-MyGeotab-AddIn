@@ -1764,6 +1764,7 @@
                         );
 
                         // Create minimal PropertyValue structure (only id and propertySet.id)
+                        // Convert empty strings to null for MyGeotab compatibility
                         const propertyValue = {
                             property: {
                                 id: propInfo.id,
@@ -1771,7 +1772,7 @@
                                     id: propInfo.setId
                                 }
                             },
-                            value: value
+                            value: value === '' ? null : value
                         };
 
                         if (existingIndex >= 0) {
@@ -1787,23 +1788,18 @@
 
                     console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
 
-                    // Step 5: Build minimal device entity for Set operation
-                    console.log('\nStep 5: Building minimal device entity for Set operation...');
+                    // Step 5: Update device.customProperties and call Set with FULL device object
+                    console.log('\nStep 5: Updating device.customProperties...');
+                    device.customProperties = updatedCustomProperties;
 
-                    // Create a minimal device object with only essential fields
-                    // Based on MyGeotab API requirements, we need: id, and the fields we want to update
-                    const minimalDevice = {
-                        id: device.id,
-                        customProperties: updatedCustomProperties
-                    };
+                    console.log('Updated device.customProperties length:', device.customProperties.length);
+                    console.log('Sample property:', JSON.stringify(device.customProperties[0], null, 2));
 
-                    console.log('Minimal device object:', JSON.stringify(minimalDevice, null, 2));
-
-                    console.log('\nStep 6: Calling Set on Device entity...');
+                    console.log('\nStep 6: Calling Set on Device entity with FULL device object...');
                     const result = await new Promise((resolve, reject) => {
                         api.call('Set', {
                             typeName: 'Device',
-                            entity: minimalDevice
+                            entity: device
                         }, resolve, (error) => {
                             console.error('\n=== SET OPERATION FAILED ===');
                             console.error('Error object:', error);
