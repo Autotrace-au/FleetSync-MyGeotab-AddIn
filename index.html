@@ -1788,30 +1788,25 @@
 
                     console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
 
-                    // Step 5: Create a clean copy of device object and update customProperties
-                    console.log('\nStep 5: Creating clean copy of device object...');
+                    // Step 5: Build minimal device entity with only required fields
+                    console.log('\nStep 5: Building minimal device entity with required fields...');
 
-                    // Use JSON.parse(JSON.stringify()) to create a deep copy without circular references
-                    let cleanDevice;
-                    try {
-                        cleanDevice = JSON.parse(JSON.stringify(device));
-                        console.log('Clean device copy created successfully');
-                    } catch (e) {
-                        console.error('Failed to create clean copy:', e);
-                        // Fall back to original device object
-                        cleanDevice = device;
-                    }
+                    // Only send id, name, and customProperties
+                    // This matches what the Python SDK likely sends after processing
+                    const minimalDevice = {
+                        id: device.id,
+                        name: device.name,
+                        customProperties: updatedCustomProperties
+                    };
 
-                    // Update customProperties on the clean copy
-                    cleanDevice.customProperties = updatedCustomProperties;
+                    console.log('Minimal device entity:', JSON.stringify(minimalDevice, null, 2));
 
-                    console.log('Updated customProperties length:', cleanDevice.customProperties.length);
-                    console.log('Sample property:', JSON.stringify(cleanDevice.customProperties[0], null, 2));
-
-                    console.log('\nStep 6: Calling api.set() method...');
+                    console.log('\nStep 6: Calling Set with minimal device entity...');
                     const result = await new Promise((resolve, reject) => {
-                        // Try using api.set() instead of api.call('Set', ...)
-                        api.set('Device', cleanDevice, resolve, (error) => {
+                        api.call('Set', {
+                            typeName: 'Device',
+                            entity: minimalDevice
+                        }, resolve, (error) => {
                             console.error('\n=== SET OPERATION FAILED ===');
                             console.error('Error object:', error);
                             if (error.ajax && error.ajax.failedRequest) {
