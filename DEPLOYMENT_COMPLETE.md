@@ -47,52 +47,39 @@ az functionapp keys list \
 
 ## Next Steps
 
-### 1. Create a Private Version of index.html
+### 1. Configure the Add-In in MyGeotab (Easy!)
 
-Since the function key cannot be committed to a public repository, you need to create a private version:
+**No need for private versions!** The Add-In now has a built-in configuration UI:
 
-**Option A: Host on Private Server**
-1. Copy `index.html` to a private location
-2. Replace `YOUR_FUNCTION_KEY` on line 1679 with the actual key above
-3. Host the file on a private web server
-4. Update `configuration.json` to point to your private URL
+1. **Install the Add-In** in MyGeotab:
+   - Go to **Administration → System → System Settings → Add-Ins**
+   - Click **New Add-In**
+   - Paste this URL:
+     ```
+     https://cdn.jsdelivr.net/gh/Autotrace-au/FleetBridge-MyGeotab-AddIn@main/configuration.json
+     ```
+   - Click **Save** and refresh your browser
 
-**Option B: Use MyGeotab File Upload (Recommended for Testing)**
-1. Copy `index.html` to a local file
-2. Replace `YOUR_FUNCTION_KEY` on line 1679 with the actual key above
-3. In MyGeotab, go to **Administration → System → System Settings → Add-Ins**
-4. Click **New Add-In**
-5. Instead of a URL, upload the modified file directly
-6. Save and refresh
+2. **Configure Azure Function Settings**:
+   - In MyGeotab, go to **Administration → FleetBridge Properties**
+   - Click the **Sync to Exchange** tab
+   - In the **Azure Function Configuration** section, enter:
+     - **Function URL**: `https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties`
+     - **Function Key**: Your function key (from `.azure-function-key.txt`)
+     - **Client API Key**: Leave blank for now (optional, for multi-tenant)
+   - Click **Save Configuration**
+   - Click **Test Connection** to verify it works
 
-**Option C: Create Per-Client Versions (Recommended for Production)**
-For each client, create a separate version of `index.html` with:
-- Their unique API key (from `onboard-client.sh`)
-- The function key
-- Host each version separately or use MyGeotab's file upload
+3. **Done!** The configuration is stored securely in your browser's localStorage
 
-### 2. Update configuration.json
+### 2. Verify Installation
 
-Update the configuration to use the latest commit:
+Check that the Add-In is working:
 
-```json
-{
-    "name": "FleetBridge Property Manager",
-    "supportEmail": "sam@garageofawesome.com.au",
-    "version": "6.1",
-    "items": [
-        {
-            "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/efa0f4e/index.html?v=6.1",
-            "path": "ActivityLink/",
-            "menuName": {
-                "en": "FleetBridge Properties"
-            }
-        }
-    ]
-}
-```
-
-**Note**: This public version still has `YOUR_FUNCTION_KEY` placeholder. You'll need to use one of the options above for production.
+1. In MyGeotab, go to **Administration → FleetBridge Properties**
+2. You should see three tabs: **Property Setup**, **Manage Assets**, **Sync to Exchange**
+3. The **Sync to Exchange** tab should show the Azure Function Configuration section
+4. Enter your configuration and test the connection
 
 ### 3. Onboard Your First Client
 
