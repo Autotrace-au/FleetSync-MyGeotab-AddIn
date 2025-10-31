@@ -1666,10 +1666,17 @@
 
             /**
              * Azure Function endpoint configuration
-             * TODO: Replace with your actual Azure Function URL and key after deployment
+             *
+             * IMPORTANT: For production, you should:
+             * 1. Create a separate private copy of this file with your actual function key
+             * 2. Host it on a private server or use MyGeotab's file upload feature
+             * 3. Never commit the function key to a public repository
+             *
+             * For now, replace YOUR_FUNCTION_KEY with your actual key from:
+             * az functionapp keys list --resource-group FleetBridgeRG --name fleetbridge-mygeotab
              */
-            const AZURE_FUNCTION_URL = 'https://YOUR_FUNCTION_APP.azurewebsites.net/api/update-device-properties';
-            const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY';
+            const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
+            const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY';  // Replace with actual key - DO NOT commit to public repo!
 
             /**
              * Client API Key Configuration
