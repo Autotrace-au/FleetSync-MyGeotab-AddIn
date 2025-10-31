@@ -1722,17 +1722,36 @@
 
                     console.log('Property lookup:', JSON.stringify(propLookup, null, 2));
 
-                    // Step 3: Build updated customProperties array
-                    console.log('\nStep 3: Building updated customProperties array...');
+                    // Step 3: Map lowercase keys to internal names
+                    const keyToInternalName = {
+                        'bookable': 'Bookable',
+                        'recurring': 'AllowRecurringBooking',
+                        'approvers': 'Approvers',
+                        'fleetManagers': 'FleetManagers',
+                        'conflicts': 'AllowConflicts',
+                        'windowDays': 'BookingWindowInDays',
+                        'maxDurationHours': 'MaximumDurationInHours',
+                        'language': 'MailboxLanguage'
+                    };
+
+                    // Step 4: Build updated customProperties array
+                    console.log('\nStep 4: Building updated customProperties array...');
 
                     // Start with existing customProperties
                     const updatedCustomProperties = device.customProperties ? [...device.customProperties] : [];
 
                     // Update/add properties from our properties object
                     for (const [key, value] of Object.entries(properties)) {
-                        const propInfo = propLookup[key];
+                        // Map lowercase key to internal name
+                        const internalName = keyToInternalName[key];
+                        if (!internalName) {
+                            console.warn(`No internal name mapping found for: ${key}`);
+                            continue;
+                        }
+
+                        const propInfo = propLookup[internalName];
                         if (!propInfo) {
-                            console.warn(`No property definition found for: ${key}`);
+                            console.warn(`No property definition found for: ${internalName}`);
                             continue;
                         }
 
@@ -1768,8 +1787,8 @@
 
                     console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
 
-                    // Step 4: Update device.customProperties and call Set
-                    console.log('\nStep 4: Calling Set on Device entity with updated customProperties...');
+                    // Step 5: Update device.customProperties and call Set
+                    console.log('\nStep 5: Calling Set on Device entity with updated customProperties...');
                     device.customProperties = updatedCustomProperties;
 
                     const result = await new Promise((resolve, reject) => {
@@ -1781,8 +1800,8 @@
 
                     console.log('Set operation result:', result);
 
-                    // Step 5: Verify the save
-                    console.log('\nStep 5: Verifying save by fetching device again...');
+                    // Step 6: Verify the save
+                    console.log('\nStep 6: Verifying save by fetching device again...');
                     const verifyDevices = await new Promise((resolve, reject) => {
                         api.call('Get', {
                             typeName: 'Device',
