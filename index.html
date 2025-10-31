@@ -1787,37 +1787,30 @@
 
                     console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
 
-                    // Step 5: Update device.customProperties and call Set
-                    console.log('\nStep 5: Calling Set on Device entity with updated customProperties...');
-                    device.customProperties = updatedCustomProperties;
+                    // Step 5: Build minimal device entity for Set operation
+                    console.log('\nStep 5: Building minimal device entity for Set operation...');
 
-                    // Log the full device object before calling Set
-                    console.log('\nFull device object being sent to Set:');
-                    console.log('Device keys:', Object.keys(device));
-                    console.log('Device.id:', device.id);
-                    console.log('Device.name:', device.name);
-                    console.log('Device.customProperties length:', device.customProperties ? device.customProperties.length : 0);
+                    // Create a minimal device object with only essential fields
+                    // Based on MyGeotab API requirements, we need: id, and the fields we want to update
+                    const minimalDevice = {
+                        id: device.id,
+                        customProperties: updatedCustomProperties
+                    };
 
-                    // Try to identify any problematic fields
-                    console.log('\nChecking for potentially problematic fields...');
-                    const problematicFields = ['version', 'activeFrom', 'activeTo', 'autoGroups', 'autoHos'];
-                    problematicFields.forEach(field => {
-                        if (device.hasOwnProperty(field)) {
-                            console.log(`  ${field}:`, device[field]);
-                        }
-                    });
+                    console.log('Minimal device object:', JSON.stringify(minimalDevice, null, 2));
 
+                    console.log('\nStep 6: Calling Set on Device entity...');
                     const result = await new Promise((resolve, reject) => {
                         api.call('Set', {
                             typeName: 'Device',
-                            entity: device
+                            entity: minimalDevice
                         }, resolve, reject);
                     });
 
                     console.log('Set operation result:', result);
 
-                    // Step 6: Verify the save
-                    console.log('\nStep 6: Verifying save by fetching device again...');
+                    // Step 7: Verify the save
+                    console.log('\nStep 7: Verifying save by fetching device again...');
                     const verifyDevices = await new Promise((resolve, reject) => {
                         api.call('Get', {
                             typeName: 'Device',
