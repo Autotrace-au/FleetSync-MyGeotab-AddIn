@@ -1788,18 +1788,31 @@
 
                     console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
 
-                    // Step 5: Update device.customProperties and call Set with FULL device object
-                    console.log('\nStep 5: Updating device.customProperties...');
-                    device.customProperties = updatedCustomProperties;
+                    // Step 5: Create a clean copy of device object and update customProperties
+                    console.log('\nStep 5: Creating clean copy of device object...');
 
-                    console.log('Updated device.customProperties length:', device.customProperties.length);
-                    console.log('Sample property:', JSON.stringify(device.customProperties[0], null, 2));
+                    // Use JSON.parse(JSON.stringify()) to create a deep copy without circular references
+                    let cleanDevice;
+                    try {
+                        cleanDevice = JSON.parse(JSON.stringify(device));
+                        console.log('Clean device copy created successfully');
+                    } catch (e) {
+                        console.error('Failed to create clean copy:', e);
+                        // Fall back to original device object
+                        cleanDevice = device;
+                    }
 
-                    console.log('\nStep 6: Calling Set on Device entity with FULL device object...');
+                    // Update customProperties on the clean copy
+                    cleanDevice.customProperties = updatedCustomProperties;
+
+                    console.log('Updated customProperties length:', cleanDevice.customProperties.length);
+                    console.log('Sample property:', JSON.stringify(cleanDevice.customProperties[0], null, 2));
+
+                    console.log('\nStep 6: Calling Set on Device entity...');
                     const result = await new Promise((resolve, reject) => {
                         api.call('Set', {
                             typeName: 'Device',
-                            entity: device
+                            entity: cleanDevice
                         }, resolve, (error) => {
                             console.error('\n=== SET OPERATION FAILED ===');
                             console.error('Error object:', error);
