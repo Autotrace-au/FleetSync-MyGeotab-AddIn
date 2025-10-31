@@ -1791,6 +1791,22 @@
                     console.log('\nStep 5: Calling Set on Device entity with updated customProperties...');
                     device.customProperties = updatedCustomProperties;
 
+                    // Log the full device object before calling Set
+                    console.log('\nFull device object being sent to Set:');
+                    console.log('Device keys:', Object.keys(device));
+                    console.log('Device.id:', device.id);
+                    console.log('Device.name:', device.name);
+                    console.log('Device.customProperties length:', device.customProperties ? device.customProperties.length : 0);
+
+                    // Try to identify any problematic fields
+                    console.log('\nChecking for potentially problematic fields...');
+                    const problematicFields = ['version', 'activeFrom', 'activeTo', 'autoGroups', 'autoHos'];
+                    problematicFields.forEach(field => {
+                        if (device.hasOwnProperty(field)) {
+                            console.log(`  ${field}:`, device[field]);
+                        }
+                    });
+
                     const result = await new Promise((resolve, reject) => {
                         api.call('Set', {
                             typeName: 'Device',
