@@ -1665,198 +1665,57 @@
             }
 
             /**
-             * Update device properties (v5.0)
-             * CORRECT APPROACH: Fetch full device, modify customProperties array, call Set
-             * Based on working implementation from autotrace-fields repo
+             * Azure Function endpoint configuration
+             * TODO: Replace with your actual Azure Function URL and key after deployment
+             */
+            const AZURE_FUNCTION_URL = 'https://YOUR_FUNCTION_APP.azurewebsites.net/api/update-device-properties';
+            const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY';
+
+            /**
+             * Update device properties (v6.0 - Azure Function)
+             * Uses Python Azure Function to update properties via MyGeotab Python SDK
+             * This avoids the JsonSerializerException issues with the JavaScript SDK
              */
             async function updateDeviceProperties(deviceId, properties) {
-                console.log('=== updateDeviceProperties START (v5.0) ===');
+                console.log('=== updateDeviceProperties START (v6.0 - Azure Function) ===');
                 console.log('Device ID:', deviceId);
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
 
                 try {
-                    // Step 1: Fetch the full device entity (including customProperties)
-                    console.log('\nStep 1: Fetching full device entity...');
-                    const devices = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'Device',
-                            search: { id: deviceId }
-                        }, resolve, reject);
-                    });
+                    // Get MyGeotab credentials from the current session
+                    const credentials = api.getSession();
 
-                    if (!devices || devices.length === 0) {
-                        throw new Error('Device not found');
-                    }
-
-                    const device = devices[0];
-                    console.log('Device retrieved:', device.name);
-                    console.log('Existing customProperties count:', device.customProperties ? device.customProperties.length : 0);
-
-                    // Step 2: Get property definitions to find property IDs and set IDs
-                    console.log('\nStep 2: Fetching property definitions...');
-                    const allProperties = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'Property'
-                        }, resolve, reject);
-                    });
-
-                    // Filter to FleetSync properties and build lookup
-                    const fleetSyncProps = allProperties.filter(p =>
-                        p.name && REQUIRED_PROPERTIES.some(rp => rp.name === p.name)
-                    );
-
-                    console.log(`Found ${fleetSyncProps.length} FleetSync properties`);
-
-                    // Build lookup: internalName -> {id, setId, name}
-                    const propLookup = {};
-                    REQUIRED_PROPERTIES.forEach(reqProp => {
-                        const matchedProp = fleetSyncProps.find(p => p.name === reqProp.name);
-                        if (matchedProp) {
-                            propLookup[reqProp.internalName] = {
-                                id: matchedProp.id,
-                                setId: matchedProp.propertySet ? matchedProp.propertySet.id : null,
-                                name: matchedProp.name
-                            };
-                        }
-                    });
-
-                    console.log('Property lookup:', JSON.stringify(propLookup, null, 2));
-
-                    // Step 3: Map lowercase keys to internal names
-                    const keyToInternalName = {
-                        'bookable': 'Bookable',
-                        'recurring': 'AllowRecurringBooking',
-                        'approvers': 'Approvers',
-                        'fleetManagers': 'FleetManagers',
-                        'conflicts': 'AllowConflicts',
-                        'windowDays': 'BookingWindowInDays',
-                        'maxDurationHours': 'MaximumDurationInHours',
-                        'language': 'MailboxLanguage'
+                    // Prepare request payload
+                    const payload = {
+                        database: credentials.database,
+                        username: credentials.userName,
+                        password: credentials.sessionId, // Use session ID instead of password
+                        deviceId: deviceId,
+                        properties: properties
                     };
 
-                    // Step 4: Build updated customProperties array
-                    console.log('\nStep 4: Building updated customProperties array...');
+                    console.log('Calling Azure Function...');
+                    console.log('URL:', AZURE_FUNCTION_URL);
 
-                    // Start with existing customProperties
-                    const updatedCustomProperties = device.customProperties ? [...device.customProperties] : [];
 
-                    // Update/add properties from our properties object
-                    for (const [key, value] of Object.entries(properties)) {
-                        // Map lowercase key to internal name
-                        const internalName = keyToInternalName[key];
-                        if (!internalName) {
-                            console.warn(`No internal name mapping found for: ${key}`);
-                            continue;
-                        }
-
-                        const propInfo = propLookup[internalName];
-                        if (!propInfo) {
-                            console.warn(`No property definition found for: ${internalName}`);
-                            continue;
-                        }
-
-                        console.log(`\nProcessing property: ${key} = ${value}`);
-                        console.log(`Found property definition: ${propInfo.name} (ID: ${propInfo.id})`);
-
-                        // Find existing PropertyValue in the array
-                        const existingIndex = updatedCustomProperties.findIndex(pv =>
-                            pv.property && pv.property.id === propInfo.id
-                        );
-
-                        // Create minimal PropertyValue structure (only id and propertySet.id)
-                        // Convert empty strings to null for MyGeotab compatibility
-                        const propertyValue = {
-                            property: {
-                                id: propInfo.id,
-                                propertySet: {
-                                    id: propInfo.setId
-                                }
-                            },
-                            value: value === '' ? null : value
-                        };
-
-                        if (existingIndex >= 0) {
-                            // Update existing PropertyValue
-                            console.log(`Found existing PropertyValue at index ${existingIndex}, updating...`);
-                            updatedCustomProperties[existingIndex] = propertyValue;
-                        } else {
-                            // Add new PropertyValue
-                            console.log(`No existing PropertyValue found, adding new one...`);
-                            updatedCustomProperties.push(propertyValue);
-                        }
-                    }
-
-                    console.log('\nFinal customProperties array:', JSON.stringify(updatedCustomProperties, null, 2));
-
-                    // Step 5: Build minimal device entity with only required fields
-                    console.log('\nStep 5: Building minimal device entity with required fields...');
-
-                    // Only send id, name, and customProperties
-                    // This matches what the Python SDK likely sends after processing
-                    const minimalDevice = {
-                        id: device.id,
-                        name: device.name,
-                        customProperties: updatedCustomProperties
-                    };
-
-                    console.log('Minimal device entity:', JSON.stringify(minimalDevice, null, 2));
-
-                    console.log('\nStep 6: Calling Set with minimal device entity...');
-                    const result = await new Promise((resolve, reject) => {
-                        api.call('Set', {
-                            typeName: 'Device',
-                            entity: minimalDevice
-                        }, resolve, (error) => {
-                            console.error('\n=== SET OPERATION FAILED ===');
-                            console.error('Error object:', error);
-                            if (error.ajax && error.ajax.failedRequest) {
-                                console.error('Failed request:', error.ajax.failedRequest);
-                                console.error('Failed request params:', JSON.stringify(error.ajax.failedRequest.params, null, 2));
-                            }
-                            if (error.ajax && error.ajax.response) {
-                                console.error('Response:', error.ajax.response);
-                                if (error.ajax.response.error) {
-                                    console.error('Response error details:', error.ajax.response.error);
-                                }
-                            }
-                            reject(error);
-                        });
+                    // Call Azure Function
+                    const response = await fetch(`${AZURE_FUNCTION_URL}?code=${AZURE_FUNCTION_KEY}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
                     });
 
-                    console.log('Set operation result:', result);
+                    const result = await response.json();
 
-                    // Step 7: Verify the save
-                    console.log('\nStep 7: Verifying save by fetching device again...');
-                    const verifyDevices = await new Promise((resolve, reject) => {
-                        api.call('Get', {
-                            typeName: 'Device',
-                            search: { id: deviceId }
-                        }, resolve, reject);
-                    });
-
-                    if (verifyDevices && verifyDevices.length > 0) {
-                        const verifiedDevice = verifyDevices[0];
-                        console.log('Verified device retrieved');
-
-                        // Check customProperties array
-                        console.log('\nVerifying customProperties:');
-                        if (verifiedDevice.customProperties && verifiedDevice.customProperties.length > 0) {
-                            verifiedDevice.customProperties.forEach(pv => {
-                                if (pv.property && pv.value !== undefined) {
-                                    const reqProp = REQUIRED_PROPERTIES.find(rp => rp.name === pv.property.name);
-                                    if (reqProp) {
-                                        const expectedValue = properties[reqProp.internalName];
-                                        const match = pv.value == expectedValue; // Use == for type coercion
-                                        console.log(`  ${pv.property.name}: ${pv.value} ${match ? '✓' : '✗ (expected: ' + expectedValue + ')'}`);
-                                    }
-                                }
-                            });
-                        } else {
-                            console.warn('No customProperties found on verified device!');
-                        }
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || 'Failed to update device properties');
                     }
 
-                    console.log('\n=== updateDeviceProperties SUCCESS ===');
+                    console.log('Azure Function response:', result);
+                    console.log('=== updateDeviceProperties SUCCESS ===');
+                    return true;
 
                 } catch (error) {
                     console.error('\n=== updateDeviceProperties ERROR ===');
