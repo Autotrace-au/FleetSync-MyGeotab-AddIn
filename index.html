@@ -461,14 +461,14 @@
                 <h2>Sync to Exchange Online</h2>
                 <div id="syncStatusMessage" class="status-message status-info">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                    <span>Configure your Azure Automation webhook to enable synchronisation with Exchange Online.</span>
+                    <span>Configure Azure Function to enable synchronisation between MyGeotab devices and Exchange Online equipment mailboxes.</span>
                 </div>
             </section>
 
             <section class="properties-section">
                 <h2>Azure Function Configuration</h2>
                 <p class="info-text">
-                    Configure your Azure Function endpoint and authentication. The function key is required to securely update device properties via the FleetBridge Azure Function.
+                    Configure your Azure Function endpoint and authentication. Both the property update and Exchange sync operations use the same Azure Function with different endpoints.
                 </p>
 
                 <div class="property-item">
@@ -482,10 +482,10 @@
                         </div>
                         <div>
                             <h3>Function URL</h3>
-                            <p>Azure Function endpoint for updating device properties</p>
+                            <p>Azure Function base URL (without /api/... endpoint)</p>
                         </div>
                     </div>
-                    <input type="text" id="azureFunctionUrl" placeholder="https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
+                    <input type="text" id="azureFunctionUrl" placeholder="https://fleetbridge-mygeotab.azurewebsites.net" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
                 </div>
 
                 <div class="property-item" style="margin-top: 16px;">
@@ -540,54 +540,52 @@
             </section>
 
             <section class="properties-section">
-                <h2>Azure Automation Configuration</h2>
+                <h2>Exchange Online Connection</h2>
                 <p class="info-text">
-                    Enter the webhook URL from your Azure Automation runbook. This webhook will be called to trigger the FleetBridge Orchestrator script that synchronises MyGeotab devices with Exchange equipment mailboxes.
+                    Connect FleetBridge to your Microsoft Exchange Online. This is a one-time setup - you'll be redirected to Microsoft to securely grant permissions. No Azure/Entra setup required!
                 </p>
 
-                <div class="property-item">
-                    <div class="property-info">
-                        <div class="property-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3>Webhook URL</h3>
-                            <p>Azure Automation webhook endpoint for FleetBridge Orchestrator</p>
-                        </div>
+                <div id="exchangeConnectionStatus" style="padding: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span id="exchangeConnectionText">Checking connection status...</span>
                     </div>
-                    <input type="text" id="webhookUrl" placeholder="https://your-webhook-url.azure-automation.net/webhooks?token=..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; margin-top: 12px;">
                 </div>
 
-                <div style="margin-top: 20px;">
-                    <button id="saveWebhookBtn" class="btn btn-primary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button id="connectExchangeBtn" class="btn btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                         </svg>
-                        Save Webhook URL
+                        Connect to Exchange
+                    </button>
+                    <button id="disconnectExchangeBtn" class="btn btn-secondary" style="display: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Disconnect
                     </button>
                 </div>
             </section>
 
             <section class="properties-section">
-                <h2>Manual Synchronisation</h2>
+                <h2>Exchange Synchronisation</h2>
                 <p class="info-text">
-                    Trigger an immediate synchronisation between MyGeotab devices and Exchange equipment mailboxes. This will run the FleetBridge Orchestrator script via the configured webhook.
+                    Synchronise MyGeotab devices with Exchange Online equipment mailboxes. This will fetch all devices from MyGeotab and update their corresponding Exchange mailboxes with current configuration (display names, timezones, booking settings, etc.).
                 </p>
 
-                <div style="margin-bottom: 16px; padding: 12px; background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; font-size: 13px; color: #92400e;">
-                    <strong>⚠️ CORS Limitation:</strong> Azure Automation webhooks don't support CORS, so direct browser calls will fail with "Failed to fetch".
-                    The webhook request is still sent and may succeed, but you won't see a response. Check Azure Automation job history to verify execution.
-                    <br><br>
-                    <strong>Alternative:</strong> Use Azure Logic Apps or Azure Functions as a CORS-enabled proxy to call the webhook.
+                <div style="margin-bottom: 16px; padding: 12px; background-color: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; font-size: 13px; color: #1e3a8a;">
+                    <strong>ℹ️ Note:</strong> This function only <strong>updates existing</strong> equipment mailboxes. Mailboxes must be created beforehand in Exchange Online with email addresses matching the device serial numbers (e.g., serial123@equipment.yourdomain.com).
                 </div>
 
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <button id="triggerSyncBtn" class="btn btn-success" disabled>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <button id="triggerSyncBtn" class="btn btn-success">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <polyline points="1 20 1 14 7 14"></polyline>
@@ -595,6 +593,11 @@
                         </svg>
                         Trigger Sync Now
                     </button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="maxDevicesLimit" style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">Limit (for testing):</label>
+                        <input type="number" id="maxDevicesLimit" min="0" max="1000" step="10" value="0" placeholder="0 = all" style="width: 80px; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">(0 = all devices)</span>
+                    </div>
                     <span id="syncProgress" style="display: none; color: var(--text-muted); font-size: 13px;">
                         <span class="loading-spinner"></span> Synchronising...
                     </span>
@@ -602,7 +605,11 @@
 
                 <div id="syncResultContainer" style="display: none; margin-top: 20px; padding: 16px; background-color: var(--light-bg); border-radius: 8px; border: 1px solid var(--border-color);">
                     <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">Sync Result</h4>
-                    <pre id="syncResult" style="margin: 0; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; color: var(--text-color);"></pre>
+                    <div id="syncSummary" style="margin-bottom: 12px; font-size: 13px;"></div>
+                    <details style="margin-top: 12px;">
+                        <summary style="cursor: pointer; font-weight: 600; font-size: 13px; padding: 8px 0;">View detailed results</summary>
+                        <pre id="syncResult" style="margin: 12px 0 0 0; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; color: var(--text-color); max-height: 400px; overflow-y: auto;"></pre>
+                    </details>
                 </div>
             </section>
         </div>
@@ -847,7 +854,6 @@
                 const saveAllAssetsBtn = document.getElementById('saveAllAssetsBtn');
                 const saveAzureFunctionConfigBtn = document.getElementById('saveAzureFunctionConfigBtn');
                 const testAzureFunctionBtn = document.getElementById('testAzureFunctionBtn');
-                const saveWebhookBtn = document.getElementById('saveWebhookBtn');
                 const triggerSyncBtn = document.getElementById('triggerSyncBtn');
 
                 if (checkBtn) checkBtn.addEventListener('click', checkProperties);
@@ -861,8 +867,13 @@
                 if (saveAllAssetsBtn) saveAllAssetsBtn.addEventListener('click', saveAllAssets);
                 if (saveAzureFunctionConfigBtn) saveAzureFunctionConfigBtn.addEventListener('click', saveAzureFunctionConfig);
                 if (testAzureFunctionBtn) testAzureFunctionBtn.addEventListener('click', testAzureFunctionConnection);
-                if (saveWebhookBtn) saveWebhookBtn.addEventListener('click', saveWebhookUrl);
                 if (triggerSyncBtn) triggerSyncBtn.addEventListener('click', triggerSync);
+
+                // Exchange connection buttons
+                const connectExchangeBtn = document.getElementById('connectExchangeBtn');
+                const disconnectExchangeBtn = document.getElementById('disconnectExchangeBtn');
+                if (connectExchangeBtn) connectExchangeBtn.addEventListener('click', connectToExchange);
+                if (disconnectExchangeBtn) disconnectExchangeBtn.addEventListener('click', disconnectFromExchange);
 
                 // Tab switching
                 document.querySelectorAll('.tab-button').forEach(button => {
@@ -871,7 +882,7 @@
 
                 // Load saved configuration on init
                 loadAzureFunctionConfig();
-                loadWebhookUrl();
+                checkExchangeConnection();
             }
 
             function switchTab(tabName) {
@@ -1783,14 +1794,14 @@
              * 2. Direct credentials (testing): No Client API Key configured
              */
             async function updateDeviceProperties(deviceId, properties) {
-                console.log('=== updateDeviceProperties START (v6.1 - User Configuration) ===');
+                console.log('=== updateDeviceProperties START (v7.0 - Unified Azure Function) ===');
                 console.log('Device ID:', deviceId);
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
 
-                // Get configuration from localStorage
-                const azureFunctionUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl');
-                const azureFunctionKey = localStorage.getItem('fleetBridgeAzureFunctionKey');
-                const clientApiKey = localStorage.getItem('fleetBridgeClientApiKey');
+                // Get configuration from localStorage (use same keys as triggerSync)
+                const azureFunctionUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const azureFunctionKey = localStorage.getItem('fleetSyncFunctionKey');
+                const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
 
                 console.log('Auth mode:', clientApiKey ? 'API Key' : 'Direct Credentials');
 
@@ -1829,11 +1840,17 @@
                     }
 
                     console.log('Calling Azure Function...');
-                    console.log('URL:', azureFunctionUrl);
-
+                    
+                    // Build endpoint URL (remove /api/... if present, add /api/update-device-properties)
+                    let baseUrl = azureFunctionUrl.trim();
+                    baseUrl = baseUrl.replace(/\/api\/[^/]+\/?$/, '');
+                    baseUrl = baseUrl.replace(/\/$/, '');
+                    const endpoint = `${baseUrl}/api/update-device-properties?code=${encodeURIComponent(azureFunctionKey)}`;
+                    
+                    console.log('URL:', endpoint);
 
                     // Call Azure Function
-                    const response = await fetch(`${azureFunctionUrl}?code=${azureFunctionKey}`, {
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1905,13 +1922,13 @@
                     return;
                 }
 
-                // Save to localStorage
-                localStorage.setItem('fleetBridgeAzureFunctionUrl', url);
-                localStorage.setItem('fleetBridgeAzureFunctionKey', key);
+                // Save to localStorage (using keys that match what triggerSync expects)
+                localStorage.setItem('fleetSyncFunctionUrl', url);
+                localStorage.setItem('fleetSyncFunctionKey', key);
                 if (apiKey) {
-                    localStorage.setItem('fleetBridgeClientApiKey', apiKey);
+                    localStorage.setItem('fleetSyncClientApiKey', apiKey);
                 } else {
-                    localStorage.removeItem('fleetBridgeClientApiKey');
+                    localStorage.removeItem('fleetSyncClientApiKey');
                 }
 
                 showAzureFunctionResult('Configuration saved successfully!', 'success');
@@ -1925,9 +1942,9 @@
                 const keyInput = document.getElementById('azureFunctionKey');
                 const apiKeyInput = document.getElementById('clientApiKey');
 
-                const savedUrl = localStorage.getItem('fleetBridgeAzureFunctionUrl');
-                const savedKey = localStorage.getItem('fleetBridgeAzureFunctionKey');
-                const savedApiKey = localStorage.getItem('fleetBridgeClientApiKey');
+                const savedUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const savedKey = localStorage.getItem('fleetSyncFunctionKey');
+                const savedApiKey = localStorage.getItem('fleetSyncClientApiKey');
 
                 if (savedUrl) urlInput.value = savedUrl;
                 if (savedKey) keyInput.value = savedKey;
@@ -2016,14 +2033,26 @@
             }
 
             async function triggerSync() {
-                const webhookUrl = localStorage.getItem('fleetSyncWebhookUrl');
                 const triggerBtn = document.getElementById('triggerSyncBtn');
                 const syncProgress = document.getElementById('syncProgress');
                 const syncResultContainer = document.getElementById('syncResultContainer');
                 const syncResult = document.getElementById('syncResult');
+                const syncSummary = document.getElementById('syncSummary');
+                const maxDevicesInput = document.getElementById('maxDevicesLimit');
 
-                if (!webhookUrl) {
-                    updateSyncStatus('Please save a webhook URL first.', 'error');
+                // Get configuration
+                const functionUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const functionKey = localStorage.getItem('fleetSyncFunctionKey');
+                const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
+                const maxDevices = maxDevicesInput ? parseInt(maxDevicesInput.value) || 0 : 0;
+
+                if (!functionUrl) {
+                    updateSyncStatus('Please configure and save Azure Function URL first.', 'error');
+                    return;
+                }
+
+                if (!functionKey) {
+                    updateSyncStatus('Please configure and save Azure Function Key first.', 'error');
                     return;
                 }
 
@@ -2033,51 +2062,97 @@
                     syncProgress.style.alignItems = 'center';
                     syncProgress.style.gap = '8px';
                     syncResultContainer.style.display = 'none';
-                    updateSyncStatus('Triggering synchronisation...', 'info');
+                    updateSyncStatus('Synchronising with Exchange Online...', 'info');
 
-                    // Use no-cors mode since Azure Automation webhooks don't support CORS
-                    const response = await fetch(webhookUrl, {
+                    // Build endpoint URL
+                    let baseUrl = functionUrl.trim();
+                    // Remove /api/update-device-properties if present (legacy)
+                    baseUrl = baseUrl.replace(/\/api\/update-device-properties\/?$/, '');
+                    // Ensure no trailing slash
+                    baseUrl = baseUrl.replace(/\/$/, '');
+                    
+                    const endpoint = `${baseUrl}/api/sync-to-exchange?code=${encodeURIComponent(functionKey)}`;
+
+                    // Build request body
+                    const requestBody = {};
+                    if (clientApiKey) {
+                        requestBody.apiKey = clientApiKey;
+                    } else {
+                        // Need MyGeotab credentials - get from session
+                        if (window.api && window.api.credentials) {
+                            requestBody.database = window.api.credentials.database;
+                            requestBody.username = window.api.credentials.userName;
+                            requestBody.password = window.api.credentials.password;
+                        } else {
+                            throw new Error('MyGeotab credentials not available. Please ensure you are logged in to MyGeotab.');
+                        }
+                    }
+
+                    if (maxDevices > 0) {
+                        requestBody.maxDevices = maxDevices;
+                    }
+
+                    console.log('Calling sync endpoint:', endpoint);
+                    
+                    const response = await fetch(endpoint, {
                         method: 'POST',
-                        mode: 'no-cors',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            source: 'MyGeotab Add-In',
-                            timestamp: new Date().toISOString()
-                        })
+                        body: JSON.stringify(requestBody)
                     });
 
-                    // With no-cors mode, we can't read the response, but the request was sent
-                    updateSyncStatus('Sync request sent successfully!', 'success');
-                    syncResult.textContent = 'Webhook request sent to Azure Automation.\n\n' +
-                        'Due to CORS limitations, we cannot verify the response.\n' +
-                        'Please check Azure Automation job history to confirm execution:\n' +
-                        '1. Go to Azure Portal\n' +
-                        '2. Navigate to your Automation Account\n' +
-                        '3. Select "Jobs" under Process Automation\n' +
-                        '4. Look for the most recent job\n\n' +
-                        'Timestamp: ' + new Date().toLocaleString();
-                    syncResultContainer.style.display = 'block';
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || `HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    if (result.success) {
+                        updateSyncStatus(`Sync completed successfully! ${result.successful} of ${result.processed} devices updated.`, 'success');
+                        
+                        // Display summary
+                        syncSummary.innerHTML = `
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                                <div style="padding: 12px; background-color: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #1e3a8a;">${result.processed}</div>
+                                    <div style="font-size: 12px; color: #1e40af;">Devices Processed</div>
+                                </div>
+                                <div style="padding: 12px; background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 6px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #065f46;">${result.successful}</div>
+                                    <div style="font-size: 12px; color: #047857;">Successful Updates</div>
+                                </div>
+                                <div style="padding: 12px; background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 6px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #991b1b;">${result.failed}</div>
+                                    <div style="font-size: 12px; color: #b91c1c;">Failed Updates</div>
+                                </div>
+                                <div style="padding: 12px; background-color: #fafafa; border: 1px solid #9ca3af; border-radius: 6px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #374151;">${result.executionTimeMs ? Math.round(result.executionTimeMs / 1000) : 0}s</div>
+                                    <div style="font-size: 12px; color: #4b5563;">Execution Time</div>
+                                </div>
+                            </div>
+                        `;
+
+                        // Display detailed results
+                        syncResult.textContent = JSON.stringify(result.results, null, 2);
+                        syncResultContainer.style.display = 'block';
+                    } else {
+                        throw new Error(result.error || 'Unknown error occurred');
+                    }
 
                 } catch (error) {
                     console.error('Sync error:', error);
-
-                    // Check if it's a CORS error
-                    if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
-                        updateSyncStatus('Request sent (CORS limitation)', 'warning');
-                        syncResult.textContent = 'The webhook request was sent, but we cannot verify the response due to CORS restrictions.\n\n' +
-                            'This is normal for Azure Automation webhooks.\n\n' +
-                            'To verify execution:\n' +
-                            '1. Check Azure Automation job history in Azure Portal\n' +
-                            '2. Look for a job that started around: ' + new Date().toLocaleString() + '\n\n' +
-                            'Consider using Azure Logic Apps or Azure Functions as a CORS-enabled proxy for better feedback.';
-                        syncResultContainer.style.display = 'block';
-                    } else {
-                        updateSyncStatus(`Error: ${error.message}`, 'error');
-                        syncResult.textContent = `Failed to trigger sync: ${error.message}`;
-                        syncResultContainer.style.display = 'block';
-                    }
+                    updateSyncStatus(`Sync failed: ${error.message}`, 'error');
+                    
+                    syncSummary.innerHTML = '';
+                    syncResult.textContent = `Error: ${error.message}\n\nPlease check:\n` +
+                        '1. Azure Function URL and Key are correct\n' +
+                        '2. Client API Key is valid (or MyGeotab credentials are available)\n' +
+                        '3. Azure Function has been deployed with Exchange sync endpoint\n' +
+                        '4. Entra app registration is configured with proper permissions\n' +
+                        '5. Certificate is uploaded to Key Vault\n\n' +
+                        'See browser console for more details.';
+                    syncResultContainer.style.display = 'block';
                 } finally {
                     triggerBtn.disabled = false;
                     syncProgress.style.display = 'none';
@@ -2091,6 +2166,166 @@
                 statusDiv.className = `status-message status-${type}`;
                 const icon = getStatusIcon(type);
                 statusDiv.innerHTML = `${icon}<span>${message}</span>`;
+            }
+
+            // ===================================================================
+            // Exchange Connection Functions (OAuth Multi-Tenant SaaS)
+            // ===================================================================
+
+            async function checkExchangeConnection() {
+                const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
+                const functionUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const functionKey = localStorage.getItem('fleetSyncFunctionKey');
+                
+                if (!functionUrl || !functionKey) {
+                    showExchangeStatus('not_configured');
+                    return;
+                }
+
+                // If no client API key, use database name
+                let clientId = clientApiKey;
+                if (!clientId && window.api && window.api.credentials) {
+                    clientId = window.api.credentials.database;
+                }
+
+                if (!clientId) {
+                    showExchangeStatus('not_configured');
+                    return;
+                }
+                
+                try {
+                    // Build endpoint URL
+                    let baseUrl = functionUrl.trim().replace(/\/$/, '');
+                    const endpoint = `${baseUrl}/api/auth/status?code=${encodeURIComponent(functionKey)}`;
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ clientId: clientId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.connected) {
+                        showExchangeStatus('connected', result);
+                    } else {
+                        showExchangeStatus('not_connected');
+                    }
+                } catch (error) {
+                    console.error('Exchange status check error:', error);
+                    showExchangeStatus('error', { error: error.message });
+                }
+            }
+
+            function showExchangeStatus(status, data = {}) {
+                const statusDiv = document.getElementById('exchangeConnectionStatus');
+                const statusText = document.getElementById('exchangeConnectionText');
+                const connectBtn = document.getElementById('connectExchangeBtn');
+                const disconnectBtn = document.getElementById('disconnectExchangeBtn');
+                
+                if (!statusDiv || !statusText || !connectBtn || !disconnectBtn) return;
+                
+                switch(status) {
+                    case 'connected':
+                        statusDiv.style.background = '#d1fae5';
+                        statusDiv.style.borderColor = '#10b981';
+                        statusDiv.style.color = '#065f46';
+                        statusText.innerHTML = `<strong>✅ Connected to Exchange</strong><br>
+                            <span style="font-size: 12px;">Connected as: ${data.userEmail || 'Unknown'} • Org: ${data.tenantId ? data.tenantId.substring(0, 8) + '...' : 'Unknown'}</span>`;
+                        connectBtn.style.display = 'none';
+                        disconnectBtn.style.display = 'inline-flex';
+                        break;
+                        
+                    case 'not_connected':
+                        statusDiv.style.background = '#fef3c7';
+                        statusDiv.style.borderColor = '#fbbf24';
+                        statusDiv.style.color = '#92400e';
+                        statusText.innerHTML = `<strong>⚠️ Not Connected to Exchange</strong><br>
+                            <span style="font-size: 12px;">Click "Connect to Exchange" to grant FleetBridge access to your Exchange Online.</span>`;
+                        connectBtn.style.display = 'inline-flex';
+                        disconnectBtn.style.display = 'none';
+                        break;
+                        
+                    case 'not_configured':
+                        statusDiv.style.background = '#dbeafe';
+                        statusDiv.style.borderColor = '#3b82f6';
+                        statusDiv.style.color = '#1e3a8a';
+                        statusText.innerHTML = `<strong>ℹ️ Setup Required</strong><br>
+                            <span style="font-size: 12px;">Please configure your Azure Function settings above first.</span>`;
+                        connectBtn.disabled = true;
+                        connectBtn.style.display = 'inline-flex';
+                        disconnectBtn.style.display = 'none';
+                        break;
+                        
+                    case 'error':
+                        statusDiv.style.background = '#fee2e2';
+                        statusDiv.style.borderColor = '#ef4444';
+                        statusDiv.style.color = '#991b1b';
+                        statusText.innerHTML = `<strong>❌ Error</strong><br>
+                            <span style="font-size: 12px;">${data.error || 'Unknown error'}</span>`;
+                        connectBtn.style.display = 'inline-flex';
+                        connectBtn.disabled = false;
+                        disconnectBtn.style.display = 'none';
+                        break;
+                }
+            }
+
+            function connectToExchange() {
+                const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
+                const functionUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const functionKey = localStorage.getItem('fleetSyncFunctionKey');
+                
+                if (!functionUrl || !functionKey) {
+                    alert('Please save your Azure Function configuration first.');
+                    return;
+                }
+                
+                // Get client ID
+                let clientId = clientApiKey;
+                if (!clientId && window.api && window.api.credentials) {
+                    clientId = window.api.credentials.database;
+                }
+
+                if (!clientId) {
+                    alert('Client ID not available. Please save API key or login to MyGeotab.');
+                    return;
+                }
+                
+                // Build OAuth login URL
+                let baseUrl = functionUrl.trim().replace(/\/$/, '');
+                const authUrl = `${baseUrl}/api/auth/login?clientId=${encodeURIComponent(clientId)}`;
+                
+                // Open OAuth consent in popup
+                const popup = window.open(
+                    authUrl,
+                    'FleetBridge OAuth',
+                    'width=600,height=800,left=200,top=100'
+                );
+                
+                if (!popup) {
+                    alert('Popup blocked! Please allow popups for this site and try again.');
+                    return;
+                }
+                
+                // Poll for popup close (user completed auth)
+                const pollTimer = setInterval(() => {
+                    if (popup.closed) {
+                        clearInterval(pollTimer);
+                        // Recheck connection status after 1 second
+                        setTimeout(() => checkExchangeConnection(), 1000);
+                    }
+                }, 500);
+            }
+
+            async function disconnectFromExchange() {
+                if (!confirm('Are you sure you want to disconnect from Exchange? You will need to reconnect to sync devices.')) {
+                    return;
+                }
+
+                // In a full implementation, you would call an endpoint to delete the refresh token
+                // For now, just show the not-connected status
+                showExchangeStatus('not_connected');
+                alert('Disconnected from Exchange. Contact support to fully revoke access.');
             }
 
             return {
