@@ -552,12 +552,12 @@
                             <line x1="12" y1="16" x2="12" y2="12"></line>
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
-                        <span id="exchangeConnectionText">Checking connection status...</span>
+                        <span id="exchangeConnectionText">Please configure Azure Function settings above first.</span>
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button id="connectExchangeBtn" class="btn btn-primary">
+                    <button id="connectExchangeBtn" class="btn btn-primary" disabled title="Save Azure Function configuration first">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
@@ -1932,6 +1932,9 @@
                 }
 
                 showAzureFunctionResult('Configuration saved successfully!', 'success');
+                
+                // Enable Exchange connection button now that config is saved
+                enableExchangeConnectionButton();
             }
 
             /**
@@ -1949,6 +1952,27 @@
                 if (savedUrl) urlInput.value = savedUrl;
                 if (savedKey) keyInput.value = savedKey;
                 if (savedApiKey) apiKeyInput.value = savedApiKey;
+                
+                // Enable Exchange connection button if config exists
+                if (savedUrl && savedKey) {
+                    enableExchangeConnectionButton();
+                }
+            }
+            
+            /**
+             * Enable the Exchange connection button
+             */
+            function enableExchangeConnectionButton() {
+                const connectBtn = document.getElementById('connectExchangeBtn');
+                if (connectBtn) {
+                    connectBtn.disabled = false;
+                    connectBtn.removeAttribute('title');
+                }
+                
+                const statusText = document.getElementById('exchangeConnectionText');
+                if (statusText) {
+                    statusText.textContent = 'Ready to connect. Click "Connect to Exchange" below.';
+                }
             }
 
             /**
@@ -2196,7 +2220,7 @@
                 try {
                     // Build endpoint URL
                     let baseUrl = functionUrl.trim().replace(/\/$/, '');
-                    const endpoint = `${baseUrl}/api/auth/status?code=${encodeURIComponent(functionKey)}`;
+                    const endpoint = `${baseUrl}/api/authstatus?code=${encodeURIComponent(functionKey)}`;
                     
                     const response = await fetch(endpoint, {
                         method: 'POST',
@@ -2293,7 +2317,7 @@
                 
                 // Build OAuth login URL
                 let baseUrl = functionUrl.trim().replace(/\/$/, '');
-                const authUrl = `${baseUrl}/api/auth/login?clientId=${encodeURIComponent(clientId)}`;
+                const authUrl = `${baseUrl}/api/authlogin?clientId=${encodeURIComponent(clientId)}`;
                 
                 // Open OAuth consent in popup
                 const popup = window.open(
