@@ -224,6 +224,60 @@ def get_client_secret():
     secret = key_vault_client.get_secret(ENTRA_CLIENT_SECRET_NAME)
     return secret.value
 
+def get_application_graph_token(api_key, tenant_id):
+    """
+    Get application access token for Microsoft Graph using certificate authentication.
+    This uses application permissions (not delegated) to access all mailboxes.
+    
+    Args:
+        api_key: Client API key (to retrieve certificate from Key Vault)
+        tenant_id: Azure AD tenant ID for the client
+    
+    Returns:
+        str: Valid access token for Microsoft Graph with application permissions
+    
+    Raises:
+        ValueError: If certificate not found or authentication fails
+    """
+    try:
+        # Get certificate from Key Vault (stored as base64-encoded PFX)
+        cert_secret = key_vault_client.get_secret(f'client-{api_key}-app-certificate')
+        cert_base64 = cert_secret.value
+        
+        # Decode base64 to get PFX bytes
+        import base64
+        cert_bytes = base64.b64decode(cert_base64)
+        
+        # Write to temporary file (MSAL requires file path)
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pfx') as cert_file:
+            cert_file.write(cert_bytes)
+            cert_path = cert_file.name
+        
+        try:
+            # Create credential using certificate
+            from azure.identity import CertificateCredential
+            credential = CertificateCredential(
+                tenant_id=tenant_id,
+                client_id=ENTRA_CLIENT_ID,
+                certificate_path=cert_path
+            )
+            
+            # Get token for Microsoft Graph
+            token = credential.get_token("https://graph.microsoft.com/.default")
+            
+            logging.info(f'Successfully obtained application token for tenant {tenant_id}')
+            return token.token
+            
+        finally:
+            # Clean up temporary file
+            import os
+            if os.path.exists(cert_path):
+                os.unlink(cert_path)
+                
+    except Exception as e:
+        logging.error(f'Failed to get application token: {e}')
+        raise ValueError(f'Failed to authenticate with certificate: {str(e)}')
+
 def get_delegated_graph_token(client_id):
     """
     Get fresh access token for Microsoft Graph using stored refresh token.
@@ -1281,10 +1335,11 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
         
         logging.info(f'Processing {len(devices)} device(s)')
         
-        # Check if client has connected Exchange (get delegated token)
+        # Get tenant ID from OAuth callback (stored when user connected Exchange)
         client_id = api_key if api_key else database
         try:
-            access_token = get_delegated_graph_token(client_id)
+            tenant_id_secret = key_vault_client.get_secret(f"client-{client_id}-exchange-tenant-id")
+            tenant_id = tenant_id_secret.value
         except Exception as e:
             return func.HttpResponse(
                 json.dumps({
@@ -1296,7 +1351,21 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
         
-        # Get Graph client with delegated token
+        # Get application token using certificate (APPLICATION permissions, not delegated)
+        try:
+            access_token = get_application_graph_token(api_key, tenant_id)
+        except Exception as e:
+            return func.HttpResponse(
+                json.dumps({
+                    "success": False,
+                    "error": "Failed to authenticate with Microsoft Graph",
+                    "details": str(e)
+                }),
+                status_code=500,
+                mimetype="application/json"
+            )
+        
+        # Get Graph client with application token
         graph_client = await get_delegated_graph_client(access_token)
         
         # Process each device
