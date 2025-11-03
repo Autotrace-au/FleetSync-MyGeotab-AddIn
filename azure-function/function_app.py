@@ -398,7 +398,7 @@ def oauth_callback(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-@app.route(route="authstatus", auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="authstatus", auth_level=func.AuthLevel.ANONYMOUS)
 def auth_status(req: func.HttpRequest) -> func.HttpResponse:
     """
     Check if a client has connected their Exchange account.
@@ -466,7 +466,7 @@ def auth_status(req: func.HttpRequest) -> func.HttpResponse:
 # MyGeotab Endpoints
 # ============================================================================
 
-@app.route(route="update-device-properties", auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="update-device-properties", auth_level=func.AuthLevel.ANONYMOUS)
 def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
     """
     Azure Function to update MyGeotab device custom properties.
@@ -953,7 +953,7 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain):
         return {'success': False, 'reason': 'update_failed', 'error': str(e), 'email': primary_smtp}
 
 
-@app.route(route="sync-to-exchange", auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="sync-to-exchange", auth_level=func.AuthLevel.ANONYMOUS)
 async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
     """
     Sync MyGeotab devices to Exchange Online equipment mailboxes.
