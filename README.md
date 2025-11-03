@@ -2,7 +2,38 @@
 
 A multi-tenant SaaS MyGeotab Add-In that manages equipment booking properties and synchronises assets with Microsoft Exchange Online equipment mailboxes. FleetBridge enables organisations to book vehicles and equipment directly through Outlook/Teams calendar.
 
-## 🚀 About FleetBridge
+## � Repository Structure
+
+```
+FleetBridge-MyGeotab-AddIn/
+├── mygeotab-addin/              # MyGeotab Add-In frontend
+│   ├── index.html               # Main Add-In interface
+│   ├── styles.css              # Add-In styling
+│   ├── configuration.json      # MyGeotab manifest
+│   ├── images/                 # Icons and assets
+│   └── translations/           # Language files
+├── azure-functions/            # Backend Azure Functions
+│   ├── function_app.py         # Main function application
+│   ├── requirements.txt        # Python dependencies
+│   ├── deploy-full-setup.sh    # Deployment script
+│   └── onboard-client.sh       # Client onboarding
+├── docs/                       # Documentation
+│   ├── QUICK_START.md         # Getting started guide
+│   ├── DEPLOYMENT.md          # Deployment instructions
+│   └── *.md                   # Technical documentation
+└── scripts/                   # Setup scripts
+    ├── assign-impersonation-role.ps1
+    └── *.ps1                  # PowerShell utilities
+```
+
+## � Quick Navigation
+
+- **[MyGeotab Add-In](./mygeotab-addin/)** - Frontend interface for MyGeotab users
+- **[Azure Functions](./azure-functions/)** - Backend SaaS service  
+- **[Documentation](./docs/)** - Complete setup and usage guides
+- **[Scripts](./scripts/)** - PowerShell utilities for Exchange setup
+
+## �🚀 About FleetBridge
 
 FleetBridge is a comprehensive multi-tenant SaaS solution that bridges MyGeotab fleet management with Microsoft Exchange Online equipment booking. It allows organisations to:
 
@@ -64,7 +95,7 @@ FleetBridge uses a hybrid architecture:
 
 ### Why Python Azure Function?
 
-The MyGeotab JavaScript SDK has a persistent bug where updating device custom properties results in `JsonSerializerException` errors. After 11+ failed attempts with JavaScript, we switched to a Python Azure Function using the MyGeotab Python SDK, which works reliably.
+The MyGeotab JavaScript SDK has a persistent bug where updating device custom properties results in `JsonSerializerException` We switched to a Python Azure Function using the MyGeotab Python SDK, which works reliably.
 
 ## 📦 Installation
 
@@ -75,7 +106,7 @@ The MyGeotab JavaScript SDK has a persistent bug where updating device custom pr
 3. Click **New Add-In**
 4. Paste this URL:
    ```
-   https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/main/configuration.json
+   https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/main/mygeotab-addin/configuration.json
    ```
 5. Click **Save**
 6. Refresh your browser (Ctrl+Shift+R or Cmd+Shift+R)
@@ -84,7 +115,7 @@ The Add-In will appear under **Administration → FleetBridge Properties**
 
 ### For Administrators (Azure Function Setup)
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment instructions including:
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment instructions including:
 - Azure resource provisioning
 - Key Vault configuration
 - Client onboarding process
