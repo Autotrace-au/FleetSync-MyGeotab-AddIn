@@ -31,9 +31,9 @@ ENTRA_CLIENT_SECRET_NAME = os.environ.get('ENTRA_CLIENT_SECRET_NAME', 'EntraAppC
 ENTRA_AUTHORITY = "https://login.microsoftonline.com/organizations"
 ENTRA_SCOPES = [
     "https://graph.microsoft.com/Calendars.ReadWrite",
-    "https://graph.microsoft.com/MailboxSettings.ReadWrite",
-    "https://graph.microsoft.com/User.ReadWrite.All"
+    "https://graph.microsoft.com/MailboxSettings.ReadWrite"
     # Note: offline_access is reserved and automatically included by Azure AD
+    # Removed User.ReadWrite.All - not needed for calendar/mailbox settings only
 ]
 
 # Initialize Key Vault client if enabled
