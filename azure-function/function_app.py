@@ -48,6 +48,128 @@ if USE_KEY_VAULT and KEY_VAULT_URL:
     except Exception as e:
         logging.error(f'Failed to initialize Key Vault clients: {e}')
 
+# Rate limiting: Simple in-memory cache (per-instance)
+# Key: IP address, Value: (request_count, window_start_time)
+rate_limit_cache = {}
+RATE_LIMIT_REQUESTS = 30  # requests per window
+RATE_LIMIT_WINDOW = 60  # seconds
+
+def check_rate_limit(client_ip: str) -> tuple[bool, str]:
+    """
+    Check if client IP is within rate limits.
+    Returns: (allowed: bool, message: str)
+    """
+    import time
+    current_time = time.time()
+    
+    if client_ip in rate_limit_cache:
+        count, window_start = rate_limit_cache[client_ip]
+        
+        # Reset window if expired
+        if current_time - window_start > RATE_LIMIT_WINDOW:
+            rate_limit_cache[client_ip] = (1, current_time)
+            return (True, "")
+        
+        # Check if over limit
+        if count >= RATE_LIMIT_REQUESTS:
+            remaining_time = int(RATE_LIMIT_WINDOW - (current_time - window_start))
+            logging.warning(f'Rate limit exceeded for IP {client_ip}. Count: {count}, Window: {window_start}')
+            return (False, f"Rate limit exceeded. Try again in {remaining_time} seconds.")
+        
+        # Increment counter
+        rate_limit_cache[client_ip] = (count + 1, window_start)
+        return (True, "")
+    else:
+        # First request from this IP
+        rate_limit_cache[client_ip] = (1, current_time)
+        return (True, "")
+
+def validate_api_key(api_key: str, client_ip: str = "unknown") -> tuple[bool, str]:
+    """
+    Validate API key by checking if corresponding secrets exist in Key Vault.
+    
+    Args:
+        api_key: Client API key to validate
+        client_ip: Client IP address for logging
+    
+    Returns:
+        (valid: bool, error_message: str)
+    """
+    if not api_key:
+        logging.warning(f'API key validation failed: No API key provided from IP {client_ip}')
+        return (False, "API key is required")
+    
+    # Validate format: should be 32 character hex (UUID without dashes)
+    if not isinstance(api_key, str) or len(api_key) != 32:
+        logging.warning(f'API key validation failed: Invalid format from IP {client_ip}')
+        return (False, "Invalid API key format")
+    
+    if not api_key.replace('-', '').isalnum():
+        logging.warning(f'API key validation failed: Invalid characters from IP {client_ip}')
+        return (False, "Invalid API key format")
+    
+    # Check if API key exists in Key Vault
+    if not USE_KEY_VAULT or not key_vault_client:
+        logging.error(f'API key validation failed: Key Vault not configured')
+        return (False, "Key Vault not configured")
+    
+    try:
+        # Try to get the database secret for this API key
+        # If it doesn't exist, the API key is invalid
+        secret_name = f'client-{api_key}-database'
+        key_vault_client.get_secret(secret_name)
+        
+        # API key is valid
+        logging.info(f'API key validation successful for client from IP {client_ip}')
+        return (True, "")
+        
+    except Exception as e:
+        # API key not found or other error
+        error_str = str(e)
+        
+        # Log security event - potential unauthorized access attempt
+        if 'not found' in error_str.lower() or 'does not exist' in error_str.lower():
+            logging.warning(f'SECURITY: Invalid API key attempt from IP {client_ip}. API key does not exist in Key Vault.')
+        else:
+            logging.error(f'SECURITY: API key validation error from IP {client_ip}: {error_str}')
+        
+        # Return generic error (don't leak whether key exists)
+        return (False, "Invalid API key")
+
+def require_valid_api_key(req: func.HttpRequest) -> tuple[bool, str, str]:
+    """
+    Validate API key from request and check rate limits.
+    
+    Returns:
+        (valid: bool, api_key: str, error_message: str)
+    """
+    # Get client IP for rate limiting and logging
+    client_ip = req.headers.get('X-Forwarded-For', 'unknown')
+    if ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    # Check rate limit first
+    allowed, rate_limit_msg = check_rate_limit(client_ip)
+    if not allowed:
+        logging.warning(f'SECURITY: Rate limit exceeded from IP {client_ip}')
+        return (False, "", rate_limit_msg)
+    
+    # Get API key from request body
+    try:
+        req_body = req.get_json()
+        api_key = req_body.get('apiKey') or req_body.get('clientId')
+    except:
+        logging.warning(f'SECURITY: No JSON body in request from IP {client_ip}')
+        return (False, "", "Invalid request format")
+    
+    # Validate API key
+    valid, error_msg = validate_api_key(api_key, client_ip)
+    
+    if not valid:
+        return (False, "", error_msg)
+    
+    return (True, api_key, "")
+
 def get_client_credentials(api_key=None, database=None, username=None, password=None):
     """
     Get client credentials either from Key Vault (using API key) or from request parameters.
@@ -169,9 +291,28 @@ def oauth_login(req: func.HttpRequest) -> func.HttpResponse:
     - clientId: Unique identifier for the client (their API key or database name)
     """
     try:
+        # Get client IP for security logging
+        client_ip = req.headers.get('X-Forwarded-For', 'unknown')
+        if ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+        
+        # Check rate limit
+        allowed, rate_limit_msg = check_rate_limit(client_ip)
+        if not allowed:
+            logging.warning(f'SECURITY: Rate limit exceeded on authlogin from IP {client_ip}')
+            return func.HttpResponse(rate_limit_msg, status_code=429)
+        
         client_id = req.params.get('clientId')
         if not client_id:
             return func.HttpResponse("Missing clientId parameter", status_code=400)
+        
+        # Validate API key (clientId is the API key)
+        valid, error_msg = validate_api_key(client_id, client_ip)
+        if not valid:
+            return func.HttpResponse(
+                f"Unauthorized: {error_msg}",
+                status_code=401
+            )
         
         # Generate random state to prevent CSRF
         import secrets
@@ -196,7 +337,7 @@ def oauth_login(req: func.HttpRequest) -> func.HttpResponse:
         
         auth_url = f"{ENTRA_AUTHORITY}/oauth2/v2.0/authorize?{urlencode(auth_params)}"
         
-        logging.info(f"OAuth login initiated for client: {client_id}")
+        logging.info(f"OAuth login initiated for client: {client_id} from IP: {client_ip}")
         
         # Return redirect response
         return func.HttpResponse(
@@ -409,6 +550,21 @@ def auth_status(req: func.HttpRequest) -> func.HttpResponse:
     }
     """
     try:
+        # Get client IP for security logging
+        client_ip = req.headers.get('X-Forwarded-For', 'unknown')
+        if ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+        
+        # Check rate limit
+        allowed, rate_limit_msg = check_rate_limit(client_ip)
+        if not allowed:
+            logging.warning(f'SECURITY: Rate limit exceeded on authstatus from IP {client_ip}')
+            return func.HttpResponse(
+                json.dumps({"connected": False, "error": rate_limit_msg}),
+                status_code=429,
+                mimetype="application/json"
+            )
+        
         req_body = req.get_json()
         client_id = req_body.get('clientId')
         
@@ -416,6 +572,15 @@ def auth_status(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(
                 json.dumps({"connected": False, "error": "Missing clientId"}),
                 status_code=400,
+                mimetype="application/json"
+            )
+        
+        # Validate API key
+        valid, error_msg = validate_api_key(client_id, client_ip)
+        if not valid:
+            return func.HttpResponse(
+                json.dumps({"connected": False, "error": error_msg}),
+                status_code=401,
                 mimetype="application/json"
             )
         
@@ -433,6 +598,7 @@ def auth_status(req: func.HttpRequest) -> func.HttpResponse:
                 except:
                     pass
                 
+                logging.info(f"Auth status check: Client {client_id} is connected from IP {client_ip}")
                 return func.HttpResponse(
                     json.dumps({
                         "connected": True,
@@ -493,11 +659,22 @@ def update_device_properties(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Update device properties function triggered')
     
     try:
+        # Validate API key and rate limit
+        valid, api_key, error_msg = require_valid_api_key(req)
+        if not valid:
+            return func.HttpResponse(
+                json.dumps({
+                    "success": False,
+                    "error": error_msg
+                }),
+                status_code=401 if "Invalid API key" in error_msg else 429,
+                mimetype="application/json"
+            )
+        
         # Parse request body
         req_body = req.get_json()
         
-        # Get credentials (either from Key Vault or request)
-        api_key = req_body.get('apiKey')
+        # Get credentials (from Key Vault using API key)
         database = req_body.get('database')
         username = req_body.get('username')
         password = req_body.get('password')
@@ -960,10 +1137,7 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
     
     Request body:
     {
-        "apiKey": "client-api-key",  // OR provide credentials directly
-        "database": "mygeotab_db",
-        "username": "user@example.com",
-        "password": "password",
+        "apiKey": "client-api-key",  // Required
         "maxDevices": 0  // Optional: limit for testing
     }
     
@@ -978,17 +1152,24 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Sync to Exchange function triggered')
     
     try:
+        # Validate API key and rate limit
+        valid, api_key, error_msg = require_valid_api_key(req)
+        if not valid:
+            return func.HttpResponse(
+                json.dumps({
+                    "success": False,
+                    "error": error_msg
+                }),
+                status_code=401 if "Invalid API key" in error_msg else 429,
+                mimetype="application/json"
+            )
+        
         # Parse request body
         req_body = req.get_json()
-        
-        # Get MyGeotab credentials
-        api_key = req_body.get('apiKey')
-        database = req_body.get('database')
-        username = req_body.get('username')
-        password = req_body.get('password')
         max_devices = req_body.get('maxDevices', 0)
         
-        credentials = get_client_credentials(api_key, database, username, password)
+        # Get MyGeotab credentials from Key Vault using API key
+        credentials = get_client_credentials(api_key, None, None, None)
         
         if not credentials:
             return func.HttpResponse(
