@@ -79,34 +79,65 @@ if ($scopeChoice -eq "1") {
     }
     
     Write-Host "Assigning role with equipment mailbox scope..." -ForegroundColor Gray
-    New-ManagementRoleAssignment `
-        -Name "FleetBridge ApplicationImpersonation - Equipment Only" `
-        -Role "ApplicationImpersonation" `
-        -ServiceId $appId `
-        -CustomRecipientWriteScope "Equipment Mailboxes Only"
     
-    Write-Host "✓ ApplicationImpersonation role assigned (Equipment mailboxes only)" -ForegroundColor Green
+    # Try using -App parameter (newer) or fall back to app ID directly
+    try {
+        New-ManagementRoleAssignment `
+            -Name "FleetBridge ApplicationImpersonation - Equipment Only" `
+            -Role "ApplicationImpersonation" `
+            -App $appId `
+            -CustomRecipientWriteScope "Equipment Mailboxes Only" `
+            -ErrorAction Stop
+        Write-Host "✓ ApplicationImpersonation role assigned (Equipment mailboxes only)" -ForegroundColor Green
+    } catch {
+        Write-Host "Trying alternative method..." -ForegroundColor Yellow
+        # Alternative: Create with app ID in the name
+        New-ManagementRoleAssignment `
+            -Name "FleetBridge ApplicationImpersonation - Equipment Only" `
+            -Role "ApplicationImpersonation" `
+            -User $appId `
+            -CustomRecipientWriteScope "Equipment Mailboxes Only"
+        Write-Host "✓ ApplicationImpersonation role assigned (Equipment mailboxes only)" -ForegroundColor Green
+    }
 } else {
     Write-Host "Assigning role for all mailboxes..." -ForegroundColor Gray
-    New-ManagementRoleAssignment `
-        -Name "FleetBridge ApplicationImpersonation" `
-        -Role "ApplicationImpersonation" `
-        -ServiceId $appId
     
-    Write-Host "✓ ApplicationImpersonation role assigned (All mailboxes)" -ForegroundColor Green
+    # Try using -App parameter (newer) or fall back to app ID directly
+    try {
+        New-ManagementRoleAssignment `
+            -Name "FleetBridge ApplicationImpersonation" `
+            -Role "ApplicationImpersonation" `
+            -App $appId `
+            -ErrorAction Stop
+        Write-Host "✓ ApplicationImpersonation role assigned (All mailboxes)" -ForegroundColor Green
+    } catch {
+        Write-Host "Trying alternative method..." -ForegroundColor Yellow
+        # Alternative: Create with app ID in the name
+        New-ManagementRoleAssignment `
+            -Name "FleetBridge ApplicationImpersonation" `
+            -Role "ApplicationImpersonation" `
+            -User $appId
+        Write-Host "✓ ApplicationImpersonation role assigned (All mailboxes)" -ForegroundColor Green
+    }
 }
 
 Write-Host ""
 Write-Host "Step 3: Verifying Role Assignment..." -ForegroundColor Green
 $assignments = Get-ManagementRoleAssignment | Where-Object {
-    $_.RoleAssigneeName -like "*$appId*" -and $_.Role -eq "ApplicationImpersonation"
+    $_.Name -like "FleetBridge*" -and $_.Role -eq "ApplicationImpersonation"
 }
 
 if ($assignments) {
     Write-Host "✓ Role assignment verified:" -ForegroundColor Green
-    $assignments | Format-Table Name, Role, RoleAssigneeType, RoleAssignmentDelegationType -AutoSize
+    $assignments | Format-Table Name, Role, RoleAssigneeType, EffectiveUserName -AutoSize
 } else {
-    Write-Host "✗ Role assignment not found!" -ForegroundColor Red
+    Write-Host "⚠ Checking all ApplicationImpersonation assignments..." -ForegroundColor Yellow
+    $allAssignments = Get-ManagementRoleAssignment -Role "ApplicationImpersonation"
+    if ($allAssignments) {
+        $allAssignments | Format-Table Name, Role, RoleAssigneeType, EffectiveUserName -AutoSize
+    } else {
+        Write-Host "✗ No ApplicationImpersonation role assignments found!" -ForegroundColor Red
+    }
 }
 
 Write-Host ""
