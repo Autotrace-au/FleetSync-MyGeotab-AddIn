@@ -10,6 +10,9 @@ from datetime import datetime
 import msal
 from msgraph import GraphServiceClient
 from msgraph.generated.users.item.mailbox_settings.mailbox_settings_request_builder import MailboxSettingsRequestBuilder
+from msgraph.generated.models.user import User
+from msgraph.generated.models.mailbox_settings import MailboxSettings
+from msgraph.generated.models.locale_info import LocaleInfo
 import base64
 import tempfile
 import asyncio
@@ -1089,18 +1092,21 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain):
     try:
         # Update display name
         if display_name:
-            await graph_client.users.by_user_id(mailbox.id).patch({
-                'displayName': display_name
-            })
+            user_update = User()
+            user_update.display_name = display_name
+            await graph_client.users.by_user_id(mailbox.id).patch(user_update)
         
         # Update mailbox regional settings (timezone, language)
         timezone = convert_to_windows_timezone(device.get('TimeZone'))
         language = device.get('MailboxLanguage', 'en-AU')
         
-        await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch({
-            'timeZone': timezone,
-            'language': {'locale': language}
-        })
+        mailbox_settings_update = MailboxSettings()
+        mailbox_settings_update.time_zone = timezone
+        locale_info = LocaleInfo()
+        locale_info.locale = language
+        mailbox_settings_update.language = locale_info
+        
+        await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
         
         # Update calendar settings
         bookable = device.get('Bookable', False)
@@ -1118,9 +1124,9 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain):
         # Update user properties (State/Province for directory)
         state = device.get('StateOrProvince')
         if state:
-            await graph_client.users.by_user_id(mailbox.id).patch({
-                'state': state
-            })
+            user_state_update = User()
+            user_state_update.state = state
+            await graph_client.users.by_user_id(mailbox.id).patch(user_state_update)
         
         logging.info(f"Successfully updated mailbox: {primary_smtp}")
         return {'success': True, 'email': primary_smtp, 'displayName': display_name}
