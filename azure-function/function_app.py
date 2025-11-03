@@ -239,23 +239,32 @@ def get_application_graph_token(api_key, tenant_id):
     Raises:
         ValueError: If certificate not found or authentication fails
     """
+    logging.info(f'Getting application token for tenant {tenant_id}')
+    
     try:
         # Get certificate from Key Vault (stored as base64-encoded PFX)
+        logging.info(f'Retrieving certificate from Key Vault for client {api_key[:8]}...')
         cert_secret = key_vault_client.get_secret(f'client-{api_key}-app-certificate')
         cert_base64 = cert_secret.value
+        logging.info(f'Certificate retrieved, length: {len(cert_base64)} chars')
         
         # Decode base64 to get PFX bytes
         import base64
         cert_bytes = base64.b64decode(cert_base64)
+        logging.info(f'Certificate decoded, {len(cert_bytes)} bytes')
         
         # Write to temporary file (MSAL requires file path)
         with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pfx') as cert_file:
             cert_file.write(cert_bytes)
             cert_path = cert_file.name
         
+        logging.info(f'Certificate written to temp file: {cert_path}')
+        
         try:
             # Create credential using certificate
             from azure.identity import CertificateCredential
+            logging.info(f'Creating CertificateCredential for tenant {tenant_id}, client {ENTRA_CLIENT_ID}')
+            
             credential = CertificateCredential(
                 tenant_id=tenant_id,
                 client_id=ENTRA_CLIENT_ID,
@@ -263,9 +272,10 @@ def get_application_graph_token(api_key, tenant_id):
             )
             
             # Get token for Microsoft Graph
+            logging.info('Requesting token from Microsoft Graph...')
             token = credential.get_token("https://graph.microsoft.com/.default")
             
-            logging.info(f'Successfully obtained application token for tenant {tenant_id}')
+            logging.info(f'✓ Successfully obtained application token for tenant {tenant_id}')
             return token.token
             
         finally:
@@ -273,9 +283,12 @@ def get_application_graph_token(api_key, tenant_id):
             import os
             if os.path.exists(cert_path):
                 os.unlink(cert_path)
+                logging.info('Cleaned up temporary certificate file')
                 
     except Exception as e:
-        logging.error(f'Failed to get application token: {e}')
+        logging.error(f'Failed to get application token: {type(e).__name__}: {e}')
+        import traceback
+        logging.error(f'Traceback: {traceback.format_exc()}')
         raise ValueError(f'Failed to authenticate with certificate: {str(e)}')
 
 def get_delegated_graph_token(client_id):
@@ -382,19 +395,18 @@ def oauth_login(req: func.HttpRequest) -> func.HttpResponse:
         redirect_uri = f"https://{os.environ.get('WEBSITE_HOSTNAME', 'localhost:7071')}/api/authcallback"
         
         from urllib.parse import urlencode
+        # Use admin consent endpoint to grant BOTH delegated AND application permissions
         auth_params = {
             'client_id': ENTRA_CLIENT_ID,
-            'response_type': 'code',
             'redirect_uri': redirect_uri,
-            'response_mode': 'query',
-            'scope': ' '.join(ENTRA_SCOPES),
             'state': state_with_client,
-            'prompt': 'consent'  # Force consent screen
         }
         
-        auth_url = f"{ENTRA_AUTHORITY}/oauth2/v2.0/authorize?{urlencode(auth_params)}"
+        # Admin consent endpoint - grants all permissions (delegated + application)
+        auth_url = f"{ENTRA_AUTHORITY}/adminconsent?{urlencode(auth_params)}"
         
-        logging.info(f"OAuth login initiated for client: {client_id} from IP: {client_ip}")
+        logging.info(f"Admin consent flow initiated for client: {client_id} from IP: {client_ip}")
+
         
         # Return redirect response
         return func.HttpResponse(
@@ -443,12 +455,13 @@ def oauth_callback(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        # Get authorization code and state
-        code = req.params.get('code')
+        # Check if this is admin consent callback (admin_consent=True)
+        admin_consent = req.params.get('admin_consent')
+        tenant = req.params.get('tenant')
         state = req.params.get('state')
         
-        if not code or not state:
-            return func.HttpResponse("Missing code or state parameter", status_code=400)
+        if not state:
+            return func.HttpResponse("Missing state parameter", status_code=400)
         
         # Extract client_id from state
         try:
@@ -456,76 +469,39 @@ def oauth_callback(req: func.HttpRequest) -> func.HttpResponse:
         except:
             return func.HttpResponse("Invalid state parameter", status_code=400)
         
-        # Exchange code for tokens
-        client_secret = get_client_secret()
-        redirect_uri = f"https://{os.environ.get('WEBSITE_HOSTNAME')}/api/authcallback"
-        
-        msal_app = msal.ConfidentialClientApplication(
-            ENTRA_CLIENT_ID,
-            authority=ENTRA_AUTHORITY,
-            client_credential=client_secret
-        )
-        
-        result = msal_app.acquire_token_by_authorization_code(
-            code,
-            scopes=ENTRA_SCOPES,
-            redirect_uri=redirect_uri
-        )
-        
-        if "error" in result:
-            logging.error(f"Token acquisition error: {result.get('error_description')}")
-            raise ValueError(result.get('error_description', 'Failed to acquire token'))
-        
-        # Extract tokens
-        access_token = result.get('access_token')
-        refresh_token = result.get('refresh_token')
-        id_token_claims = result.get('id_token_claims', {})
-        tenant_id = id_token_claims.get('tid')
-        user_email = id_token_claims.get('preferred_username')
-        
-        if not refresh_token:
-            raise ValueError("No refresh token received (offline_access scope missing?)")
-        
-        logging.info(f"OAuth tokens received for client: {client_id}, tenant: {tenant_id}")
-        
-        # Store refresh token in Key Vault
-        if key_vault_client:
-            secret_name = f"client-{client_id}-exchange-refresh-token"
-            key_vault_client.set_secret(secret_name, refresh_token)
+        # Handle admin consent response
+        if admin_consent == 'True' and tenant:
+            logging.info(f"Admin consent granted for client: {client_id}, tenant: {tenant}")
             
-            # Also store tenant ID (needed for token refresh)
-            tenant_secret_name = f"client-{client_id}-exchange-tenant-id"
-            key_vault_client.set_secret(tenant_secret_name, tenant_id)
+            # Store tenant ID in Key Vault (needed for certificate-based auth)
+            if key_vault_client:
+                tenant_secret_name = f"client-{client_id}-exchange-tenant-id"
+                key_vault_client.set_secret(tenant_secret_name, tenant)
+                logging.info(f"Stored tenant ID for client {client_id} in Key Vault")
             
-            # Store user email for display
-            email_secret_name = f"client-{client_id}-exchange-user-email"
-            key_vault_client.set_secret(email_secret_name, user_email)
-            
-            logging.info(f"Stored tokens for client {client_id} in Key Vault")
-        
-        # Return success page
-        return func.HttpResponse(
-            f"""
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>Connected!</title>
-                <style>
-                    body {{
-                        font-family: Arial, sans-serif;
-                        padding: 40px;
-                        text-align: center;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        margin: 0;
-                    }}
-                    .container {{
-                        background: white;
-                        color: #333;
-                        padding: 40px;
-                        border-radius: 12px;
-                        max-width: 600px;
-                        margin: 0 auto;
+            # Return success page
+            return func.HttpResponse(
+                f"""
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Connected!</title>
+                    <style>
+                        body {{
+                            font-family: Arial, sans-serif;
+                            padding: 40px;
+                            text-align: center;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            margin: 0;
+                        }}
+                        .container {{
+                            background: white;
+                            color: #333;
+                            padding: 40px;
+                            border-radius: 12px;
+                            max-width: 600px;
+                            margin: 0 auto;
                         box-shadow: 0 10px 40px rgba(0,0,0,0.2);
                     }}
                     h1 {{ color: #10b981; margin-bottom: 20px; }}
@@ -552,15 +528,19 @@ def oauth_callback(req: func.HttpRequest) -> func.HttpResponse:
             </head>
             <body>
                 <div class="container">
-                    <h1>✅ Successfully Connected to Exchange!</h1>
-                    <p>FleetBridge can now sync your MyGeotab devices with Exchange Online.</p>
+                    <h1>✅ Admin Consent Granted!</h1>
+                    <p>FleetBridge now has permission to manage equipment mailboxes in Exchange Online.</p>
                     
                     <div class="info">
-                        <p><strong>Connected as:</strong> {user_email}</p>
-                        <p><strong>Organization ID:</strong> {tenant_id}</p>
+                        <p><strong>Organization ID:</strong> {tenant}</p>
+                        <p><strong>Permissions Granted:</strong></p>
+                        <ul style="text-align: left; display: inline-block;">
+                            <li>Read and write calendars (all mailboxes)</li>
+                            <li>Read and write mailbox settings (all mailboxes)</li>
+                        </ul>
                     </div>
                     
-                    <p>You can now close this window and return to the MyGeotab Add-In.</p>
+                    <p>You can now close this window and start syncing devices.</p>
                     <button onclick="window.close()">Close Window</button>
                     
                     <script>
@@ -573,6 +553,27 @@ def oauth_callback(req: func.HttpRequest) -> func.HttpResponse:
             """,
             mimetype="text/html",
             status_code=200
+        )
+        
+        # If admin_consent is False or missing, consent was denied
+        logging.warning(f"Admin consent denied for client: {client_id}")
+        return func.HttpResponse(
+            """
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Consent Denied</title>
+            </head>
+            <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1 style="color: #d32f2f;">❌ Admin Consent Denied</h1>
+                <p>FleetBridge requires admin consent to manage equipment mailboxes.</p>
+                <p>Please contact your administrator or try again.</p>
+                <button onclick="window.close()" style="background: #667eea; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 20px;">Close Window</button>
+            </body>
+            </html>
+            """,
+            mimetype="text/html",
+            status_code=403
         )
         
     except Exception as e:
@@ -925,6 +926,53 @@ def test_oauth(req: func.HttpRequest) -> func.HttpResponse:
         status_code=200,
         mimetype="application/json"
     )
+
+
+@app.route(route="test-app-token", auth_level=func.AuthLevel.ANONYMOUS)
+async def test_app_token(req: func.HttpRequest) -> func.HttpResponse:
+    """Test endpoint to verify application token and mailbox lookup."""
+    try:
+        api_key = "2b25f16552be4781a5a109b318ccb10c"  # Garage of Awesome
+        tenant_id = "a8713c4a-df53-4daf-8420-4dc43c792b68"
+        test_email = "cy1b215b5229@garageofawesome.com.au"
+        
+        # Get application token
+        logging.info("Getting application token...")
+        access_token = get_application_graph_token(api_key, tenant_id)
+        logging.info(f"Token obtained, length: {len(access_token)}")
+        
+        # Create Graph client
+        logging.info("Creating Graph client...")
+        graph_client = await get_delegated_graph_client(access_token)
+        
+        # Try to find mailbox
+        logging.info(f"Looking up mailbox: {test_email}")
+        user = await graph_client.users.by_user_id(test_email).get()
+        
+        return func.HttpResponse(
+            json.dumps({
+                "success": True,
+                "token_length": len(access_token),
+                "mailbox_found": user is not None,
+                "mailbox_id": user.id if user else None,
+                "mailbox_upn": user.user_principal_name if user else None,
+                "mailbox_display_name": user.display_name if user else None
+            }),
+            status_code=200,
+            mimetype="application/json"
+        )
+        
+    except Exception as e:
+        import traceback
+        return func.HttpResponse(
+            json.dumps({
+                "success": False,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
 
 
 # ========================================================================
