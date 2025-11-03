@@ -89,27 +89,15 @@ cat > "$CONFIG_FILE" <<EOF
   "apiKey": "$API_KEY",
   "database": "$DATABASE",
   "onboardedDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "addInConfiguration": {
-    "name": "FleetBridge Property Manager",
-    "supportEmail": "support@yourcompany.com",
-    "version": "6.0.0",
-    "items": [
-      {
-        "url": "https://raw.githubusercontent.com/Autotrace-au/FleetBridge-MyGeotab-AddIn/COMMIT_HASH/index.html?v=6.0",
-        "path": "ActivityLink",
-        "menuName": {
-          "en": "FleetBridge Property Manager"
-        }
-      }
-    ]
-  },
-  "instructions": [
-    "1. Update index.html with the API key below",
-    "2. Commit and push to GitHub",
-    "3. Update the commit hash in the configuration above",
-    "4. Send the configuration JSON URL to the client",
-    "5. Provide installation instructions"
-  ]
+  "status": "active",
+  "setupInstructions": [
+    "1. Send the Client API Key to the client",
+    "2. Instruct them to enter it in the FleetBridge Add-In (Sync tab)",
+    "3. Have them click 'Save Configuration' and 'Test Connection'",
+    "4. Guide them through 'Connect to Exchange' OAuth flow"
+  ],
+  "apiKeyForClient": "$API_KEY",
+  "notes": "Store credentials in Key Vault as: client-${API_KEY}-database, client-${API_KEY}-username, client-${API_KEY}-password"
 }
 EOF
 
@@ -126,23 +114,32 @@ echo "Configuration file saved to:"
 echo "  $CONFIG_FILE"
 echo ""
 echo "=========================================="
-echo "Next Steps:"
+echo "Send to Client:"
 echo "=========================================="
 echo ""
-echo "1. Update index.html with this API key:"
-echo "   const CLIENT_API_KEY = '$API_KEY';"
+echo "Your FleetBridge Client API Key:"
+echo "  $API_KEY"
 echo ""
-echo "2. Or create a client-specific version of the Add-In"
+echo "Keep this key secure - it uniquely identifies your account."
 echo ""
-echo "3. Test the API key:"
-echo "   curl -X POST https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY \\"
-echo "     -H 'Content-Type: application/json' \\"
-echo "     -d '{\"apiKey\": \"$API_KEY\", \"deviceId\": \"b1\", \"properties\": {\"bookable\": true}}'"
+echo "Setup Instructions:"
+echo "1. Open the FleetBridge Add-In in MyGeotab"
+echo "2. Click the 'Sync' tab"
+echo "3. Enter your Client API Key: $API_KEY"
+echo "4. Click 'Save Configuration'"
+echo "5. Click 'Test Connection' to verify"
+echo "6. Click 'Connect to Exchange' and grant permissions"
 echo ""
-echo "4. To revoke access, delete the secrets from Key Vault:"
-echo "   az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-database"
-echo "   az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-username"
-echo "   az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-password"
-echo "   az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-metadata"
+echo "=========================================="
+echo "Administrator Actions:"
+echo "=========================================="
 echo ""
-
+echo "To revoke this client's access:"
+echo "  az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-database"
+echo "  az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-username"
+echo "  az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-password"
+echo "  az keyvault secret delete --vault-name $KEY_VAULT --name client-${API_KEY}-metadata"
+echo ""
+echo "To test API key (for debugging):"
+echo "  curl https://fleetbridge-mygeotab.azurewebsites.net/api/health"
+echo ""
