@@ -1240,24 +1240,22 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
         language = device.get('MailboxLanguage', 'en-AU')
         
         try:
-            from exchangelib import Account, Configuration, IMPERSONATION, OAuth2Credentials, EWSTimeZone
-            from exchangelib.protocol import BaseProtocol, NoVerifyHTTPAdapter
+            from exchangelib import Account, Configuration, IMPERSONATION
+            from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
             
-            # Configure EWS with OAuth token
-            credentials = OAuth2Credentials(
+            # Create OAuth credentials with existing access token
+            # exchangelib expects a dict with 'access_token' key
+            credentials = OAuth2AuthorizationCodeCredentials(
                 client_id=ENTRA_CLIENT_ID,
-                client_secret=None,  # Using access token directly
-                tenant_id=None,  # Not needed when using existing token
-                access_token={'access_token': access_token}
+                access_token={'access_token': access_token, 'token_type': 'Bearer'}
             )
             
             config = Configuration(
                 server='outlook.office365.com',
-                credentials=credentials,
-                auth_type=IMPERSONATION
+                credentials=credentials
             )
             
-            # Connect to the equipment mailbox
+            # Connect to the equipment mailbox with impersonation
             account = Account(
                 primary_smtp_address=primary_smtp,
                 config=config,
@@ -1265,24 +1263,18 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
                 access_type=IMPERSONATION
             )
             
-            # Update timezone
+            # Update timezone using EWS
             try:
+                from exchangelib import EWSTimeZone
                 account.default_timezone = EWSTimeZone.timezone(timezone)
-                logging.info(f"Updated timezone to {timezone} for {primary_smtp}")
+                logging.info(f"✓ EWS: Updated timezone to {timezone} for {primary_smtp}")
             except Exception as tz_error:
-                logging.warning(f"Failed to update timezone: {tz_error}")
+                logging.warning(f"EWS timezone update failed: {tz_error}")
             
-            # Update locale/language
-            try:
-                account.locale = language
-                logging.info(f"Updated language to {language} for {primary_smtp}")
-            except Exception as lang_error:
-                logging.warning(f"Failed to update language: {lang_error}")
+            logging.info(f"✓ Successfully updated mailbox via EWS: {primary_smtp}")
             
-            logging.info(f"Successfully updated mailbox via EWS: {primary_smtp}")
-            
-        except ImportError:
-            logging.error("exchangelib library not installed - falling back to Graph API")
+        except ImportError as import_err:
+            logging.error(f"exchangelib library not installed: {import_err} - falling back to Graph API")
             # Fallback to Graph API (will likely fail on resource mailboxes)
             mailbox_settings_update = MailboxSettings()
             mailbox_settings_update.time_zone = timezone
@@ -1292,14 +1284,20 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
             await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
         
         except Exception as ews_error:
-            logging.error(f"EWS update failed: {ews_error}, trying Graph API fallback")
+            logging.error(f"EWS update failed for {primary_smtp}: {ews_error}")
+            logging.info("Attempting Graph API fallback...")
             # Fallback to Graph API
-            mailbox_settings_update = MailboxSettings()
-            mailbox_settings_update.time_zone = timezone
-            locale_info = LocaleInfo()
-            locale_info.locale = language
-            mailbox_settings_update.language = locale_info
-            await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+            try:
+                mailbox_settings_update = MailboxSettings()
+                mailbox_settings_update.time_zone = timezone
+                locale_info = LocaleInfo()
+                locale_info.locale = language
+                mailbox_settings_update.language = locale_info
+                await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+                logging.info(f"✓ Graph API fallback succeeded for {primary_smtp}")
+            except Exception as graph_error:
+                logging.error(f"Graph API fallback also failed: {graph_error}")
+                raise  # Re-raise to be caught by outer exception handler
         
         # Calendar booking settings
         bookable = device.get('Bookable', False)
