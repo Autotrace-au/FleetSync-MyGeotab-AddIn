@@ -1239,9 +1239,14 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
         timezone = convert_to_windows_timezone(device.get('TimeZone'))
         language = device.get('MailboxLanguage', 'en-AU')
         
+        logging.info(f"Attempting EWS connection for {primary_smtp} with timezone={timezone_value}, language={language}")
+        
         try:
             from exchangelib import Account, Configuration, IMPERSONATION
             from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
+            from exchangelib.protocol import BaseProtocol, NoVerifyHTTPAdapter
+            
+            logging.info(f"EWS libraries imported successfully")
             
             # Create OAuth credentials with existing access token
             # exchangelib expects a dict with 'access_token' key
@@ -1250,10 +1255,14 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
                 access_token={'access_token': access_token, 'token_type': 'Bearer'}
             )
             
+            logging.info(f"OAuth credentials created for client_id={ENTRA_CLIENT_ID}")
+            
             config = Configuration(
                 server='outlook.office365.com',
                 credentials=credentials
             )
+            
+            logging.info(f"EWS configuration created for outlook.office365.com")
             
             # Connect to the equipment mailbox with impersonation
             account = Account(
@@ -1263,9 +1272,12 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
                 access_type=IMPERSONATION
             )
             
+            logging.info(f"EWS Account object created for {primary_smtp}")
+            
             # Update timezone using EWS
             try:
                 from exchangelib import EWSTimeZone
+                logging.info(f"Attempting to set timezone to {timezone}")
                 account.default_timezone = EWSTimeZone.timezone(timezone)
                 logging.info(f"✓ EWS: Updated timezone to {timezone} for {primary_smtp}")
             except Exception as tz_error:
@@ -1284,6 +1296,9 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
             await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
         
         except Exception as ews_error:
+            logging.error(f"EWS update failed: {type(ews_error).__name__}: {str(ews_error)}")
+            logging.info(f"Falling back to Graph API for mailbox settings")
+
             logging.error(f"EWS update failed for {primary_smtp}: {ews_error}")
             logging.info("Attempting Graph API fallback...")
             # Fallback to Graph API
