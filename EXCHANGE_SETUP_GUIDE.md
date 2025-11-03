@@ -2,20 +2,15 @@
 
 ## Overview
 
-FleetBridge uses a hybrid approach to manage equipment mailboxes:
-- **Graph API**: Updates display names, user properties (fast, reliable)
-- **Exchange Web Services (EWS)**: Updates mailbox settings like timezone and language (required for equipment/resource mailboxes)
+FleetBridge uses Microsoft Graph API to manage equipment mailboxes, but requires special Exchange Online permissions to modify mailbox settings on resource/equipment mailboxes.
 
-## Why This Approach?
+## Why Special Setup is Required
 
-Microsoft Exchange Online has special security restrictions on **equipment** and **resource** mailboxes. Regular Graph API permissions aren't sufficient to modify these mailboxes, even with admin consent. To work around this, we:
-
-1. Use Graph API for operations that work fine (display names, user info)
-2. Use EWS for operations that require Exchange-level permissions (mailbox settings)
+Microsoft Exchange Online has strict security restrictions on **equipment** and **resource** mailboxes. The Graph API `MailboxSettings.ReadWrite` permission alone is not sufficient - the application also needs the **ApplicationImpersonation** role in Exchange Online.
 
 ## One-Time Setup Required
 
-Each client organization needs to grant FleetBridge access to their Exchange mailboxes. This is a **one-time** configuration that takes ~2 minutes.
+Each client organization needs to grant FleetBridge the necessary Exchange permissions. This is a **one-time** configuration that takes ~3 minutes.
 
 ### Prerequisites
 
@@ -37,7 +32,36 @@ Connect-ExchangeOnline -UserPrincipalName admin@yourdomain.com
 
 Sign in with your admin account when prompted.
 
-### Step 3: Create Application Access Policy
+### Step 3: Assign ApplicationImpersonation Role
+
+This role allows FleetBridge to update mailbox settings on behalf of equipment mailboxes:
+
+```powershell
+$appId = "7eeb2358-00de-4da9-a6b7-8522b5353ade"
+
+New-ManagementRoleAssignment `
+    -Name "FleetBridge ApplicationImpersonation" `
+    -Role "ApplicationImpersonation" `
+    -ServiceId $appId
+```
+
+**Optional - Scope to Equipment Mailboxes Only (Recommended for Security)**:
+
+```powershell
+# Create a scope for equipment mailboxes only
+New-ManagementScope `
+    -Name "Equipment Mailboxes Only" `
+    -RecipientRestrictionFilter {RecipientTypeDetails -eq "EquipmentMailbox"}
+
+# Assign the role with the scope
+New-ManagementRoleAssignment `
+    -Name "FleetBridge ApplicationImpersonation - Equipment Only" `
+    -Role "ApplicationImpersonation" `
+    -ServiceId $appId `
+    -CustomRecipientWriteScope "Equipment Mailboxes Only"
+```
+
+### Step 4: Create Application Access Policy
 
 Replace `yourdomain.com` with your organization's email domain:
 
@@ -58,7 +82,21 @@ New-ApplicationAccessPolicy `
     -Description 'FleetBridge SaaS - Equipment Mailbox Management'
 ```
 
-### Step 4: Test the Policy
+### Step 5: Verify the Role Assignment
+
+```powershell
+# Check the ApplicationImpersonation role was assigned
+Get-ManagementRoleAssignment | Where-Object {$_.RoleAssigneeName -like "*7eeb2358*"}
+```
+
+You should see:
+```
+Name                                   Role                       RoleAssigneeType
+----                                   ----                       ----------------
+FleetBridge ApplicationImpersonation   ApplicationImpersonation   ServicePrincipal
+```
+
+### Step 6: Test the Policy
 
 Test against one of your equipment mailboxes:
 
@@ -73,7 +111,7 @@ You should see:
 AccessCheckResult : Granted
 ```
 
-### Step 5: Disconnect
+### Step 7: Disconnect
 
 ```powershell
 Disconnect-ExchangeOnline

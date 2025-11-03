@@ -1235,84 +1235,22 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
             user_state_update.state = state
             await graph_client.users.by_user_id(mailbox.id).patch(user_state_update)
         
-        # Use EWS for mailbox settings (timezone, language) - Graph API fails on resource mailboxes
+        # Update mailbox settings (timezone, language) using Graph API
+        # IMPORTANT: This requires ApplicationImpersonation role in Exchange Online for resource mailboxes
+        # See EXCHANGE_IMPERSONATION_SETUP.md for configuration instructions
         timezone = convert_to_windows_timezone(device.get('TimeZone'))
         language = device.get('MailboxLanguage', 'en-AU')
         
-        logging.info(f"Attempting EWS connection for {primary_smtp} with timezone={timezone_value}, language={language}")
+        logging.info(f"Updating mailbox settings for {primary_smtp}: timezone={timezone}, language={language}")
         
-        try:
-            from exchangelib import Account, Configuration, IMPERSONATION
-            from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
-            from exchangelib.protocol import BaseProtocol, NoVerifyHTTPAdapter
-            
-            logging.info(f"EWS libraries imported successfully")
-            
-            # Create OAuth credentials with existing access token
-            # exchangelib expects a dict with 'access_token' key
-            credentials = OAuth2AuthorizationCodeCredentials(
-                client_id=ENTRA_CLIENT_ID,
-                access_token={'access_token': access_token, 'token_type': 'Bearer'}
-            )
-            
-            logging.info(f"OAuth credentials created for client_id={ENTRA_CLIENT_ID}")
-            
-            config = Configuration(
-                server='outlook.office365.com',
-                credentials=credentials
-            )
-            
-            logging.info(f"EWS configuration created for outlook.office365.com")
-            
-            # Connect to the equipment mailbox with impersonation
-            account = Account(
-                primary_smtp_address=primary_smtp,
-                config=config,
-                autodiscover=False,
-                access_type=IMPERSONATION
-            )
-            
-            logging.info(f"EWS Account object created for {primary_smtp}")
-            
-            # Update timezone using EWS
-            try:
-                from exchangelib import EWSTimeZone
-                logging.info(f"Attempting to set timezone to {timezone}")
-                account.default_timezone = EWSTimeZone.timezone(timezone)
-                logging.info(f"✓ EWS: Updated timezone to {timezone} for {primary_smtp}")
-            except Exception as tz_error:
-                logging.warning(f"EWS timezone update failed: {tz_error}")
-            
-            logging.info(f"✓ Successfully updated mailbox via EWS: {primary_smtp}")
-            
-        except ImportError as import_err:
-            logging.error(f"exchangelib library not installed: {import_err} - falling back to Graph API")
-            # Fallback to Graph API (will likely fail on resource mailboxes)
-            mailbox_settings_update = MailboxSettings()
-            mailbox_settings_update.time_zone = timezone
-            locale_info = LocaleInfo()
-            locale_info.locale = language
-            mailbox_settings_update.language = locale_info
-            await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+        mailbox_settings_update = MailboxSettings()
+        mailbox_settings_update.time_zone = timezone
+        locale_info = LocaleInfo()
+        locale_info.locale = language
+        mailbox_settings_update.language = locale_info
         
-        except Exception as ews_error:
-            logging.error(f"EWS update failed: {type(ews_error).__name__}: {str(ews_error)}")
-            logging.info(f"Falling back to Graph API for mailbox settings")
-
-            logging.error(f"EWS update failed for {primary_smtp}: {ews_error}")
-            logging.info("Attempting Graph API fallback...")
-            # Fallback to Graph API
-            try:
-                mailbox_settings_update = MailboxSettings()
-                mailbox_settings_update.time_zone = timezone
-                locale_info = LocaleInfo()
-                locale_info.locale = language
-                mailbox_settings_update.language = locale_info
-                await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
-                logging.info(f"✓ Graph API fallback succeeded for {primary_smtp}")
-            except Exception as graph_error:
-                logging.error(f"Graph API fallback also failed: {graph_error}")
-                raise  # Re-raise to be caught by outer exception handler
+        await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+        logging.info(f"✓ Successfully updated mailbox settings for {primary_smtp}")
         
         # Calendar booking settings
         bookable = device.get('Bookable', False)
