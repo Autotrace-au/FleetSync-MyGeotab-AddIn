@@ -2011,18 +2011,11 @@
                 const maxDevicesInput = document.getElementById('maxDevicesLimit');
 
                 // Get configuration
-                const functionUrl = localStorage.getItem('fleetSyncFunctionUrl');
-                const functionKey = localStorage.getItem('fleetSyncFunctionKey');
                 const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
                 const maxDevices = maxDevicesInput ? parseInt(maxDevicesInput.value) || 0 : 0;
 
-                if (!functionUrl) {
-                    updateSyncStatus('Please configure and save Azure Function URL first.', 'error');
-                    return;
-                }
-
-                if (!functionKey) {
-                    updateSyncStatus('Please configure and save Azure Function Key first.', 'error');
+                if (!clientApiKey) {
+                    updateSyncStatus('Please configure and save Client API Key first.', 'error');
                     return;
                 }
 
@@ -2034,29 +2027,13 @@
                     syncResultContainer.style.display = 'none';
                     updateSyncStatus('Synchronising with Exchange Online...', 'info');
 
-                    // Build endpoint URL
-                    let baseUrl = functionUrl.trim();
-                    // Remove /api/update-device-properties if present (legacy)
-                    baseUrl = baseUrl.replace(/\/api\/update-device-properties\/?$/, '');
-                    // Ensure no trailing slash
-                    baseUrl = baseUrl.replace(/\/$/, '');
-                    
-                    const endpoint = `${baseUrl}/api/sync-to-exchange?code=${encodeURIComponent(functionKey)}`;
+                    // Build endpoint URL using hardcoded Function URL
+                    const endpoint = `${FLEETBRIDGE_FUNCTION_URL}/api/sync-to-exchange`;
 
-                    // Build request body
-                    const requestBody = {};
-                    if (clientApiKey) {
-                        requestBody.apiKey = clientApiKey;
-                    } else {
-                        // Need MyGeotab credentials - get from session
-                        if (window.api && window.api.credentials) {
-                            requestBody.database = window.api.credentials.database;
-                            requestBody.username = window.api.credentials.userName;
-                            requestBody.password = window.api.credentials.password;
-                        } else {
-                            throw new Error('MyGeotab credentials not available. Please ensure you are logged in to MyGeotab.');
-                        }
-                    }
+                    // Build request body with Client API Key
+                    const requestBody = {
+                        clientId: clientApiKey
+                    };
 
                     if (maxDevices > 0) {
                         requestBody.maxDevices = maxDevices;
