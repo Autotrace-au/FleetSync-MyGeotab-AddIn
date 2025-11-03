@@ -1182,17 +1182,32 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
             )
         
         database, username, password = credentials
-        equipment_domain = os.environ.get('EQUIPMENT_DOMAIN')
         
-        if not equipment_domain:
-            return func.HttpResponse(
-                json.dumps({
-                    "success": False,
-                    "error": "EQUIPMENT_DOMAIN not configured in function app settings"
-                }),
-                status_code=500,
-                mimetype="application/json"
-            )
+        # Get equipment domain from Key Vault (per-client configuration)
+        try:
+            domain_secret = key_vault_client.get_secret(f'client-{api_key}-equipment-domain')
+            equipment_domain = domain_secret.value
+        except Exception as e:
+            error_str = str(e)
+            if 'not found' in error_str.lower():
+                return func.HttpResponse(
+                    json.dumps({
+                        "success": False,
+                        "error": "Equipment domain not configured for this client. Please contact support."
+                    }),
+                    status_code=400,
+                    mimetype="application/json"
+                )
+            else:
+                logging.error(f'Error retrieving equipment domain: {error_str}')
+                return func.HttpResponse(
+                    json.dumps({
+                        "success": False,
+                        "error": "Error retrieving client configuration"
+                    }),
+                    status_code=500,
+                    mimetype="application/json"
+                )
         
         # Connect to MyGeotab
         logging.info(f'Connecting to MyGeotab database: {database}')

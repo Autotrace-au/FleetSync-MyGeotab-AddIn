@@ -9,11 +9,14 @@ set -e  # Exit on error
 KEY_VAULT="fleetbridge-vault"
 
 # Check arguments
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <client-name> <mygeotab-database> <mygeotab-username> <mygeotab-password>"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <client-name> <mygeotab-database> <mygeotab-username> <mygeotab-password> <equipment-domain>"
     echo ""
     echo "Example:"
-    echo "  $0 \"Acme Corp\" \"acme\" \"admin@acme.com\" \"password123\""
+    echo "  $0 \"Acme Corp\" \"acme\" \"admin@acme.com\" \"password123\" \"acme.com\""
+    echo ""
+    echo "Note: equipment-domain is the email domain for equipment mailboxes"
+    echo "      (e.g., if mailboxes are serial@acme.com, use 'acme.com')"
     exit 1
 fi
 
@@ -21,6 +24,7 @@ CLIENT_NAME=$1
 DATABASE=$2
 USERNAME=$3
 PASSWORD=$4
+EQUIPMENT_DOMAIN=$5
 
 echo "=========================================="
 echo "FleetBridge Client Onboarding"
@@ -29,6 +33,7 @@ echo ""
 echo "Client Name: $CLIENT_NAME"
 echo "Database: $DATABASE"
 echo "Username: $USERNAME"
+echo "Equipment Domain: $EQUIPMENT_DOMAIN"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
@@ -60,12 +65,19 @@ az keyvault secret set \
   --value "$PASSWORD" \
   > /dev/null
 
+az keyvault secret set \
+  --vault-name $KEY_VAULT \
+  --name "client-${API_KEY}-equipment-domain" \
+  --value "$EQUIPMENT_DOMAIN" \
+  > /dev/null
+
 # Store client metadata (for reference)
 CLIENT_METADATA=$(cat <<EOF
 {
   "clientName": "$CLIENT_NAME",
   "database": "$DATABASE",
   "username": "$USERNAME",
+  "equipmentDomain": "$EQUIPMENT_DOMAIN",
   "onboardedDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
