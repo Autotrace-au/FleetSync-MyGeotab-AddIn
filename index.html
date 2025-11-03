@@ -2242,27 +2242,22 @@
 
             function connectToExchange() {
                 const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
-                const functionUrl = localStorage.getItem('fleetSyncFunctionUrl');
-                const functionKey = localStorage.getItem('fleetSyncFunctionKey');
                 
-                if (!functionUrl || !functionKey) {
+                if (!clientApiKey) {
                     alert('Please save your Azure Function configuration first.');
                     return;
                 }
                 
-                // Get client ID
+                // Get client ID (use API key)
                 let clientId = clientApiKey;
-                if (!clientId && window.api && window.api.credentials) {
-                    clientId = window.api.credentials.database;
-                }
 
                 if (!clientId) {
-                    alert('Client ID not available. Please save API key or login to MyGeotab.');
+                    alert('Client ID not available. Please save API key.');
                     return;
                 }
                 
-                // Build OAuth login URL
-                let baseUrl = functionUrl.trim().replace(/\/$/, '');
+                // Build OAuth login URL using hardcoded function URL
+                let baseUrl = FLEETBRIDGE_FUNCTION_URL.trim().replace(/\/$/, '');
                 const authUrl = `${baseUrl}/api/authlogin?clientId=${encodeURIComponent(clientId)}`;
                 
                 // Open OAuth consent in popup
