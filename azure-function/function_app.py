@@ -32,8 +32,8 @@ ENTRA_AUTHORITY = "https://login.microsoftonline.com/organizations"
 ENTRA_SCOPES = [
     "https://graph.microsoft.com/Calendars.ReadWrite",
     "https://graph.microsoft.com/MailboxSettings.ReadWrite",
-    "https://graph.microsoft.com/User.ReadWrite.All",
-    "offline_access"
+    "https://graph.microsoft.com/User.ReadWrite.All"
+    # Note: offline_access is reserved and automatically included by Azure AD
 ]
 
 # Initialize Key Vault client if enabled
