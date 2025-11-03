@@ -949,6 +949,27 @@ async def test_app_token(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Looking up mailbox: {test_email}")
         user = await graph_client.users.by_user_id(test_email).get()
         
+        # Try to UPDATE mailbox settings (this is where permission issues occur)
+        logging.info("Attempting to update mailbox settings...")
+        from msgraph.generated.models.mailbox_settings import MailboxSettings
+        from msgraph.generated.models.locale_info import LocaleInfo
+        
+        settings = MailboxSettings()
+        settings.time_zone = "AUS Eastern Standard Time"
+        settings.language = LocaleInfo(
+            locale="en-AU",
+            display_name="English (Australia)"
+        )
+        
+        try:
+            await graph_client.users.by_user_id(test_email).mailbox_settings.patch(settings)
+            update_success = True
+            update_error = None
+        except Exception as update_ex:
+            update_success = False
+            update_error = str(update_ex)
+            logging.error(f"Failed to update mailbox: {update_error}")
+        
         return func.HttpResponse(
             json.dumps({
                 "success": True,
@@ -956,7 +977,9 @@ async def test_app_token(req: func.HttpRequest) -> func.HttpResponse:
                 "mailbox_found": user is not None,
                 "mailbox_id": user.id if user else None,
                 "mailbox_upn": user.user_principal_name if user else None,
-                "mailbox_display_name": user.display_name if user else None
+                "mailbox_display_name": user.display_name if user else None,
+                "update_success": update_success,
+                "update_error": update_error
             }),
             status_code=200,
             mimetype="application/json"
@@ -1166,10 +1189,17 @@ async def find_equipment_mailbox(graph_client, primary_smtp, alias):
         return None
 
 
-async def update_equipment_mailbox(graph_client, device, equipment_domain):
+async def update_equipment_mailbox(graph_client, device, equipment_domain, access_token):
     """
     Update an equipment mailbox based on MyGeotab device data.
+    Uses Graph API for display name, EWS for mailbox settings (due to equipment mailbox restrictions).
     Does NOT create mailboxes - only updates existing ones.
+    
+    Args:
+        graph_client: Microsoft Graph client
+        device: MyGeotab device dict
+        equipment_domain: Email domain for equipment mailboxes
+        access_token: OAuth access token for EWS authentication
     """
     serial_number = device.get('SerialNumber', '').lower()
     if not serial_number:
@@ -1192,49 +1222,99 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain):
     logging.info(f"Updating mailbox: {primary_smtp}")
     
     try:
-        # Update display name
+        # Update display name using Graph API (this works fine)
         if display_name:
             user_update = User()
             user_update.display_name = display_name
             await graph_client.users.by_user_id(mailbox.id).patch(user_update)
         
-        # Update mailbox regional settings (timezone, language)
-        timezone = convert_to_windows_timezone(device.get('TimeZone'))
-        language = device.get('MailboxLanguage', 'en-AU')
-        
-        mailbox_settings_update = MailboxSettings()
-        mailbox_settings_update.time_zone = timezone
-        locale_info = LocaleInfo()
-        locale_info.locale = language
-        mailbox_settings_update.language = locale_info
-        
-        await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
-        
-        # Update calendar settings
-        bookable = device.get('Bookable', False)
-        
-        if not bookable:
-            # Disable booking
-            logging.info(f"Bookable=False: Disabling booking for {primary_smtp}")
-            # Note: Calendar processing settings are managed via Exchange cmdlets
-            # Graph API has limited calendar processing capabilities
-            # This would require Exchange Online PowerShell or direct REST calls
-        else:
-            logging.info(f"Bookable=True: Booking enabled for {primary_smtp}")
-            # Apply booking rules via Exchange REST API or PowerShell
-        
-        # Update user properties (State/Province for directory)
+        # Update user properties (State/Province for directory) using Graph API
         state = device.get('StateOrProvince')
         if state:
             user_state_update = User()
             user_state_update.state = state
             await graph_client.users.by_user_id(mailbox.id).patch(user_state_update)
         
+        # Use EWS for mailbox settings (timezone, language) - Graph API fails on resource mailboxes
+        timezone = convert_to_windows_timezone(device.get('TimeZone'))
+        language = device.get('MailboxLanguage', 'en-AU')
+        
+        try:
+            from exchangelib import Account, Configuration, IMPERSONATION, OAuth2Credentials, EWSTimeZone
+            from exchangelib.protocol import BaseProtocol, NoVerifyHTTPAdapter
+            
+            # Configure EWS with OAuth token
+            credentials = OAuth2Credentials(
+                client_id=ENTRA_CLIENT_ID,
+                client_secret=None,  # Using access token directly
+                tenant_id=None,  # Not needed when using existing token
+                access_token={'access_token': access_token}
+            )
+            
+            config = Configuration(
+                server='outlook.office365.com',
+                credentials=credentials,
+                auth_type=IMPERSONATION
+            )
+            
+            # Connect to the equipment mailbox
+            account = Account(
+                primary_smtp_address=primary_smtp,
+                config=config,
+                autodiscover=False,
+                access_type=IMPERSONATION
+            )
+            
+            # Update timezone
+            try:
+                account.default_timezone = EWSTimeZone.timezone(timezone)
+                logging.info(f"Updated timezone to {timezone} for {primary_smtp}")
+            except Exception as tz_error:
+                logging.warning(f"Failed to update timezone: {tz_error}")
+            
+            # Update locale/language
+            try:
+                account.locale = language
+                logging.info(f"Updated language to {language} for {primary_smtp}")
+            except Exception as lang_error:
+                logging.warning(f"Failed to update language: {lang_error}")
+            
+            logging.info(f"Successfully updated mailbox via EWS: {primary_smtp}")
+            
+        except ImportError:
+            logging.error("exchangelib library not installed - falling back to Graph API")
+            # Fallback to Graph API (will likely fail on resource mailboxes)
+            mailbox_settings_update = MailboxSettings()
+            mailbox_settings_update.time_zone = timezone
+            locale_info = LocaleInfo()
+            locale_info.locale = language
+            mailbox_settings_update.language = locale_info
+            await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+        
+        except Exception as ews_error:
+            logging.error(f"EWS update failed: {ews_error}, trying Graph API fallback")
+            # Fallback to Graph API
+            mailbox_settings_update = MailboxSettings()
+            mailbox_settings_update.time_zone = timezone
+            locale_info = LocaleInfo()
+            locale_info.locale = language
+            mailbox_settings_update.language = locale_info
+            await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
+        
+        # Calendar booking settings
+        bookable = device.get('Bookable', False)
+        if not bookable:
+            logging.info(f"Bookable=False: Booking disabled for {primary_smtp}")
+        else:
+            logging.info(f"Bookable=True: Booking enabled for {primary_smtp}")
+        
         logging.info(f"Successfully updated mailbox: {primary_smtp}")
         return {'success': True, 'email': primary_smtp, 'displayName': display_name}
         
     except Exception as e:
         logging.error(f"Error updating mailbox {primary_smtp}: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
         return {'success': False, 'reason': 'update_failed', 'error': str(e), 'email': primary_smtp}
 
 
@@ -1422,7 +1502,7 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
             if not device.get('SerialNumber'):
                 continue
             
-            result = await update_equipment_mailbox(graph_client, device, equipment_domain)
+            result = await update_equipment_mailbox(graph_client, device, equipment_domain, access_token)
             results.append({
                 'device': device.get('Name'),
                 'serialNumber': device.get('SerialNumber'),
