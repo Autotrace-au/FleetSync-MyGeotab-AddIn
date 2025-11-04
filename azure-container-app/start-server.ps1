@@ -161,18 +161,17 @@ while ($listener.IsListening) {
                 
                 # Extract parameters
                 $apiKey = if ($requestData.clientId) { $requestData.clientId } else { $requestData.apiKey }
-                $deviceUpdates = $requestData.deviceUpdates
+                $deviceId = $requestData.deviceId
+                $properties = $requestData.properties
                 
                 Write-Host "=== UPDATE DEVICE PROPERTIES REQUEST ==="
-                Write-Host "API Key: $($apiKey.Substring(0,8))..., Devices: $($deviceUpdates.Count)"
+                Write-Host "API Key: $($apiKey.Substring(0,8))..., Device: $deviceId"
                 
                 if (-not $apiKey) {
                     $errorResponse = @{
                         success = $false
                         timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
                         error = "API Key is required for MyGeotab authentication"
-                        updated = 0
-                        failed = 0
                     } | ConvertTo-Json
                     
                     $response.StatusCode = 400
@@ -180,13 +179,11 @@ while ($listener.IsListening) {
                     $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
                     $response.OutputStream.Write($buffer, 0, $buffer.Length)
                 }
-                elseif (-not $deviceUpdates -or $deviceUpdates.Count -eq 0) {
+                elseif (-not $deviceId -or -not $properties) {
                     $errorResponse = @{
                         success = $false
                         timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-                        error = "deviceUpdates array is required"
-                        updated = 0
-                        failed = 0
+                        error = "Missing required parameters: deviceId, properties"
                     } | ConvertTo-Json
                     
                     $response.StatusCode = 400
@@ -196,8 +193,8 @@ while ($listener.IsListening) {
                 }
                 else {
                     # Call the update device properties script
-                    Write-Host "Executing device property updates..."
-                    $updateResult = & ./update-device-properties.ps1 -ApiKey $apiKey -DeviceUpdates $deviceUpdates
+                    Write-Host "Executing device property update..."
+                    $updateResult = & ./update-device-properties.ps1 -ApiKey $apiKey -DeviceId $deviceId -Properties $properties
                     
                     $response.StatusCode = 200
                     $response.ContentType = "application/json"
@@ -210,8 +207,6 @@ while ($listener.IsListening) {
                     success = $false
                     timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
                     error = "Error processing update request: $($_.Exception.Message)"
-                    updated = 0
-                    failed = 0
                 } | ConvertTo-Json
                 
                 $response.StatusCode = 500

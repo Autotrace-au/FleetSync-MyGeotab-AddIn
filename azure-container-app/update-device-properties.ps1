@@ -6,10 +6,13 @@
     Updates MyGeotab device custom properties
 .DESCRIPTION
     Updates custom properties for specified MyGeotab devices using the MyGeotab API
+    Matches the logic from the proven Azure Function implementation
 .PARAMETER ApiKey
     MyGeotab API key for authentication
-.PARAMETER DeviceUpdates
-    Array of device updates with deviceId and customProperties
+.PARAMETER DeviceId
+    Device ID to update
+.PARAMETER Properties
+    Properties object to update
 #>
 
 [CmdletBinding()]
@@ -18,7 +21,10 @@ param(
     [string]$ApiKey,
     
     [Parameter(Mandatory=$true)]
-    [object[]]$DeviceUpdates
+    [string]$DeviceId,
+    
+    [Parameter(Mandatory=$true)]
+    [object]$Properties
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,17 +33,16 @@ $ProgressPreference = 'SilentlyContinue'
 # Initialize response
 $response = @{
     success = $false
-    updated = 0
-    failed = 0
-    results = @()
+    message = ""
+    database = ""
+    deviceId = $DeviceId
     executionTimeMs = 0
 }
 
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
-    Write-Host "Starting device property updates..."
-    Write-Host "Updates to process: $($DeviceUpdates.Count)"
+    Write-Host "Starting device property update for device: $DeviceId"
     
     # Login to Azure using managed identity (for Container App)
     try {
@@ -70,22 +75,10 @@ try {
     }
     
     Write-Host "Retrieved credentials for database: $mygeotabDatabase"
+    $response.database = $mygeotabDatabase
     
-    # Process each device update
-    foreach ($update in $DeviceUpdates) {
-        $deviceId = $update.deviceId
-        $properties = $update.customProperties
-        
-        Write-Host "`nProcessing device: $deviceId"
-        
-        $deviceResult = @{
-            deviceId = $deviceId
-            status = "pending"
-        }
-        
-        try {
-            # Build Python script to update device properties
-            $pythonScript = @"
+    # Build Python script to update device properties (matches Azure Function logic)
+    $pythonScript = @"
 import mygeotab
 import sys
 import json
@@ -100,68 +93,145 @@ try:
     api.authenticate()
     
     # Get device
-    device = api.get('Device', id='$deviceId')[0]
+    print(f'Fetching device: $DeviceId', file=sys.stderr)
+    devices = api.get('Device', search={'id': '$DeviceId'})
+    if not devices:
+        print(json.dumps({
+            'success': False,
+            'error': 'Device not found: $DeviceId'
+        }))
+        sys.exit(1)
     
-    # Update custom properties
-    properties = $($properties | ConvertTo-Json -Compress -Depth 10)
+    device = devices[0]
+    print(f'Device retrieved: {device.get("name")}', file=sys.stderr)
     
-    # MyGeotab stores custom properties in customData field
-    if not hasattr(device, 'customData') or device['customData'] is None:
-        device['customData'] = {}
+    # Fetch property definitions
+    print('Fetching property definitions', file=sys.stderr)
+    all_properties = api.get('Property')
     
-    # Update properties
+    # Property name mapping (matches Azure Function)
+    property_mapping = {
+        'bookable': 'Enable Equipment Booking',
+        'recurring': 'Allow Recurring Bookings',
+        'approvers': 'Booking Approvers',
+        'fleetManagers': 'Fleet Managers',
+        'conflicts': 'Allow Double Booking',
+        'windowDays': 'Booking Window (Days)',
+        'maxDurationHours': 'Maximum Booking Duration (Hours)',
+        'language': 'Mailbox Language'
+    }
+    
+    # Build property lookup
+    prop_lookup = {}
+    for key, prop_name in property_mapping.items():
+        matching_prop = next((p for p in all_properties if p.get('name') == prop_name), None)
+        if matching_prop:
+            prop_lookup[key] = {
+                'id': matching_prop['id'],
+                'setId': matching_prop.get('propertySet', {}).get('id'),
+                'name': prop_name
+            }
+    
+    print(f'Found {len(prop_lookup)} property definitions', file=sys.stderr)
+    
+    # Get properties to update from PowerShell
+    properties = $($Properties | ConvertTo-Json -Compress -Depth 10)
+    
+    # Build updated customProperties array
+    custom_properties = device.get('customProperties', [])
+    
     for key, value in properties.items():
-        device['customData'][key] = value
+        if key not in prop_lookup:
+            print(f'Property not found: {key}', file=sys.stderr)
+            continue
+        
+        prop_info = prop_lookup[key]
+        
+        # Convert empty strings to None
+        if value == '':
+            value = None
+        
+        # Find existing PropertyValue
+        existing_index = next(
+            (i for i, pv in enumerate(custom_properties) 
+             if pv.get('property', {}).get('id') == prop_info['id']),
+            None
+        )
+        
+        # Create PropertyValue structure
+        property_value = {
+            'property': {
+                'id': prop_info['id'],
+                'propertySet': {
+                    'id': prop_info['setId']
+                }
+            },
+            'value': value
+        }
+        
+        if existing_index is not None:
+            # Update existing
+            print(f'Updating property: {key} = {value}', file=sys.stderr)
+            custom_properties[existing_index] = property_value
+        else:
+            # Add new
+            print(f'Adding property: {key} = {value}', file=sys.stderr)
+            custom_properties.append(property_value)
     
-    # Save device
+    # Update device customProperties
+    device['customProperties'] = custom_properties
+    
+    # Call Set to update the device
+    print('Calling Set to update device', file=sys.stderr)
     api.set('Device', device)
+    
+    print('Device updated successfully', file=sys.stderr)
     
     print(json.dumps({
         'success': True,
-        'deviceId': '$deviceId',
-        'updatedProperties': properties
+        'message': f'Device {device.get("name")} updated successfully',
+        'database': '$mygeotabDatabase',
+        'deviceId': '$DeviceId'
     }))
     
 except Exception as e:
+    print(f'Error updating device: {str(e)}', file=sys.stderr)
     print(json.dumps({
         'success': False,
-        'deviceId': '$deviceId',
         'error': str(e)
-    }), file=sys.stderr)
+    }))
     sys.exit(1)
 "@
-            
-            # Execute Python script
-            $pythonOutput = $pythonScript | python3 -u - 2>&1
-            $pythonExitCode = $LASTEXITCODE
-            
-            if ($pythonExitCode -eq 0) {
-                $result = $pythonOutput | ConvertFrom-Json
-                
-                $deviceResult.status = "success"
-                $deviceResult.updatedProperties = $result.updatedProperties
-                
-                Write-Host "✓ Successfully updated device: $deviceId"
-                $response.updated++
-            }
-            else {
-                throw "Python script failed: $pythonOutput"
-            }
+    
+    # Execute Python script
+    Write-Host "Executing Python script to update device..."
+    $pythonOutput = $pythonScript | python3 -u - 2>&1
+    $pythonExitCode = $LASTEXITCODE
+    
+    if ($pythonExitCode -eq 0) {
+        # Parse the last line as JSON (the actual result)
+        $outputLines = $pythonOutput -split "`n"
+        $jsonLine = $outputLines[-1]
+        $result = $jsonLine | ConvertFrom-Json
+        
+        $response.success = $result.success
+        $response.message = $result.message
+        $response.database = $result.database
+        
+        Write-Host "✓ Successfully updated device: $DeviceId"
+    }
+    else {
+        # Try to parse error from output
+        $outputLines = $pythonOutput -split "`n"
+        $jsonLine = $outputLines[-1]
+        try {
+            $errorResult = $jsonLine | ConvertFrom-Json
+            throw $errorResult.error
         }
         catch {
-            $errorMessage = $_.Exception.Message
-            Write-Host "✗ Failed to update device ${deviceId}: $errorMessage"
-            
-            $deviceResult.status = "failed"
-            $deviceResult.error = $errorMessage
-            $response.failed++
+            throw "Python script failed: $pythonOutput"
         }
-        
-        $response.results += $deviceResult
     }
-    
-    # Mark as successful if at least one device was updated
-    $response.success = ($response.updated -gt 0)
     
 }
 catch {
@@ -169,15 +239,14 @@ catch {
     Write-Host "ERROR: $errorMessage"
     
     $response.success = $false
-    $response.error = $errorMessage
+    $response.message = "Error: $errorMessage"
 }
 finally {
     $stopwatch.Stop()
     $response.executionTimeMs = $stopwatch.Elapsed.TotalMilliseconds
     
     Write-Host "`nExecution Summary:"
-    Write-Host "- Updated: $($response.updated)"
-    Write-Host "- Failed: $($response.failed)"
+    Write-Host "- Success: $($response.success)"
     Write-Host "- Duration: $([math]::Round($response.executionTimeMs / 1000, 2))s"
 }
 
