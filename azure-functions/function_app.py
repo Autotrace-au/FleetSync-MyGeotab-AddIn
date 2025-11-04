@@ -2,6 +2,7 @@ import azure.functions as func
 import logging
 import json
 import os
+import subprocess
 from mygeotab import API
 from azure.keyvault.secrets import SecretClient
 from azure.keyvault.certificates import CertificateClient
@@ -16,6 +17,124 @@ from msgraph.generated.models.locale_info import LocaleInfo
 import base64
 import tempfile
 import asyncio
+from exchange_powershell_linux import update_equipment_mailbox_calendar_processing
+
+def ensure_powershell_available():
+    """Install PowerShell Core if not available in the Azure Functions environment."""
+    try:
+        # Check if PowerShell is already available
+        result = subprocess.run(['pwsh', '--version'], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            logging.info(f"PowerShell Core already available: {result.stdout.strip()}")
+            return True
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        logging.warning(f"Error checking PowerShell availability: {e}")
+    
+    # PowerShell not found, try to install it
+    logging.info("PowerShell Core not found, attempting to install...")
+    
+    try:
+        # Install PowerShell Core using wget and dpkg (for Debian-based Azure Functions)
+        install_commands = [
+            # Download the PowerShell package
+            "wget -q https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/powershell_7.4.0-1.deb_amd64.deb -O /tmp/powershell.deb",
+            # Install dependencies
+            "apt-get update -qq",
+            "apt-get install -y -qq libc6 libgcc1 libgssapi-krb5-2 liblttng-ust0 libstdc++6 libunwind8 libuuid1 zlib1g libicu67 || apt-get install -y -qq libc6 libgcc1 libgssapi-krb5-2 liblttng-ust1 libstdc++6 libunwind8 libuuid1 zlib1g libicu72",
+            # Install PowerShell
+            "dpkg -i /tmp/powershell.deb",
+            # Fix any broken dependencies
+            "apt-get install -f -y -qq"
+        ]
+        
+        for cmd in install_commands:
+            logging.info(f"Running: {cmd}")
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                logging.warning(f"Command failed (continuing): {cmd}")
+                logging.warning(f"Error: {result.stderr}")
+            else:
+                logging.info(f"Command succeeded: {cmd}")
+        
+        # Test if PowerShell is now available
+        result = subprocess.run(['pwsh', '--version'], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            logging.info(f"PowerShell Core successfully installed: {result.stdout.strip()}")
+            return True
+        else:
+            logging.error("PowerShell installation failed - executable not found after installation")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Failed to install PowerShell Core: {e}")
+        return False
+
+def update_equipment_mailbox_calendar_processing_containerapp(access_token, mailbox_email, device_name):
+    """
+    Update equipment mailbox calendar processing using Azure Container App with PowerShell.
+    This is the scalable solution that actually works for Exchange Online.
+    """
+    try:
+        import requests
+        import base64
+        
+        # Azure Container App endpoint
+        container_app_url = os.environ.get('CONTAINER_APP_URL', 'https://exchange-calendar-processor.icydune-12345.eastus.azurecontainerapps.io')
+        
+        # Get certificate data from Key Vault
+        cert_secret = key_vault_client.get_secret('powershell-cert-data')
+        certificate_data = cert_secret.value
+        
+        # Prepare request payload
+        payload = {
+            'mailboxEmail': mailbox_email,
+            'deviceName': device_name,
+            'tenantId': ENTRA_TENANT_ID or 'your-tenant-id',
+            'clientId': ENTRA_CLIENT_ID,
+            'certificateData': certificate_data
+        }
+        
+        # Call Container App
+        response = requests.post(
+            f"{container_app_url}/process-mailbox",
+            json=payload,
+            timeout=60,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            logging.info(f"Successfully processed calendar settings via Container App for {mailbox_email}")
+            return {
+                'success': True,
+                'method': 'azure_container_app_powershell',
+                'mailbox': mailbox_email,
+                'device': device_name,
+                'details': result
+            }
+        else:
+            logging.error(f"Container App error: {response.status_code} - {response.text}")
+            return {
+                'success': False,
+                'method': 'azure_container_app_powershell',
+                'error': f"Container App error: {response.status_code} - {response.text}",
+                'mailbox': mailbox_email,
+                'device': device_name
+            }
+            
+    except Exception as e:
+        logging.error(f"Error calling Container App for {mailbox_email}: {e}")
+        return {
+            'success': False,
+            'method': 'azure_container_app_powershell',
+            'error': str(e),
+            'mailbox': mailbox_email,
+            'device': device_name
+        }
+
+app = func.FunctionApp()
 
 app = func.FunctionApp()
 
@@ -23,6 +142,245 @@ app = func.FunctionApp()
 @app.route(route="test1", auth_level=func.AuthLevel.ANONYMOUS)
 def test1(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse("Test 1 works", status_code=200)
+
+@app.route(route="system-info", auth_level=func.AuthLevel.ANONYMOUS)
+def system_info(req: func.HttpRequest) -> func.HttpResponse:
+    """Get system information about the Azure Functions environment."""
+    
+    try:
+        info = {}
+        
+        # Check OS information
+        try:
+            result = subprocess.run(['uname', '-a'], capture_output=True, text=True, timeout=10)
+            info['uname'] = result.stdout.strip()
+        except Exception as e:
+            info['uname_error'] = str(e)
+        
+        # Check Linux distribution
+        try:
+            result = subprocess.run(['cat', '/etc/os-release'], capture_output=True, text=True, timeout=10)
+            info['os_release'] = result.stdout.strip()
+        except Exception as e:
+            info['os_release_error'] = str(e)
+            
+        # Check available package managers
+        package_managers = ['apt-get', 'yum', 'apk', 'dnf']
+        for pm in package_managers:
+            try:
+                result = subprocess.run([pm, '--version'], capture_output=True, text=True, timeout=10)
+                info[f'{pm}_available'] = result.returncode == 0
+                if result.returncode == 0:
+                    info[f'{pm}_version'] = result.stdout.strip()
+            except Exception:
+                info[f'{pm}_available'] = False
+        
+        # Check if we have sudo permissions
+        try:
+            result = subprocess.run(['sudo', '-n', 'echo', 'test'], capture_output=True, text=True, timeout=10)
+            info['sudo_available'] = result.returncode == 0
+        except Exception:
+            info['sudo_available'] = False
+            
+        # Check available shell commands
+        commands = ['wget', 'curl', 'dpkg', 'which']
+        for cmd in commands:
+            try:
+                result = subprocess.run(['which', cmd], capture_output=True, text=True, timeout=10)
+                info[f'{cmd}_available'] = result.returncode == 0
+                if result.returncode == 0:
+                    info[f'{cmd}_path'] = result.stdout.strip()
+            except Exception:
+                info[f'{cmd}_available'] = False
+        
+        return func.HttpResponse(
+            json.dumps(info, indent=2),
+            status_code=200,
+            mimetype="application/json"
+        )
+            
+    except Exception as e:
+        logging.error(f"System info error: {e}")
+        return func.HttpResponse(
+            json.dumps({
+                "success": False,
+                "error": str(e)
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
+def install_powershell(req: func.HttpRequest) -> func.HttpResponse:
+    """Attempt to install PowerShell Core in the Azure Functions environment."""
+    
+    try:
+        success = ensure_powershell_available()
+        
+        if success:
+            # Test PowerShell functionality
+            result = subprocess.run(['pwsh', '--version'], capture_output=True, text=True, timeout=10)
+            return func.HttpResponse(
+                json.dumps({
+                    "success": True,
+                    "message": "PowerShell Core is now available",
+                    "version": result.stdout.strip()
+                }),
+                status_code=200,
+                mimetype="application/json"
+            )
+        else:
+            return func.HttpResponse(
+                json.dumps({
+                    "success": False,
+                    "message": "Failed to install PowerShell Core"
+                }),
+                status_code=500,
+                mimetype="application/json"
+            )
+            
+    except Exception as e:
+        logging.error(f"Install PowerShell error: {e}")
+        return func.HttpResponse(
+            json.dumps({
+                "success": False,
+                "error": str(e)
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+# Diagnostic endpoint to test PowerShell integration
+@app.route(route="test-powershell", auth_level=func.AuthLevel.ANONYMOUS)
+def test_powershell(req: func.HttpRequest) -> func.HttpResponse:
+    """Test PowerShell Core and Exchange Online module availability"""
+    
+    results = {}
+    
+    try:
+        # Test 1: Check if PowerShell Core is available
+        logging.info("Testing PowerShell Core availability...")
+        
+        # Try different PowerShell executables
+        ps_commands = ['pwsh', 'powershell', 'powershell.exe']
+        ps_available = False
+        ps_command = None
+        
+        for cmd in ps_commands:
+            try:
+                ps_result = subprocess.run([cmd, '--version'], 
+                                         capture_output=True, text=True, timeout=30)
+                if ps_result.returncode == 0:
+                    ps_available = True
+                    ps_command = cmd
+                    break
+            except FileNotFoundError:
+                continue
+            except Exception as e:
+                logging.warning(f"Error testing {cmd}: {e}")
+                continue
+        
+        results['powershell_core'] = {
+            'available': ps_available,
+            'command': ps_command,
+            'tested_commands': ps_commands
+        }
+        
+        if ps_available and ps_command:
+            # Get version info
+            ps_result = subprocess.run([ps_command, '--version'], 
+                                     capture_output=True, text=True, timeout=30)
+            results['powershell_core']['version'] = ps_result.stdout.strip()
+        else:
+            results['powershell_core']['error'] = 'No PowerShell executable found'
+        
+        # Test 2: Check Exchange Online module
+        logging.info("Testing Exchange Online PowerShell module...")
+        if ps_available and ps_command:
+            module_test = subprocess.run([
+                ps_command, '-c', 'Import-Module ExchangeOnlineManagement -Force; Get-Module ExchangeOnlineManagement'
+            ], capture_output=True, text=True, timeout=30)
+            
+            results['exchange_module'] = {
+                'available': 'ExchangeOnlineManagement' in module_test.stdout,
+                'output': module_test.stdout.strip(),
+                'error': module_test.stderr.strip(),
+                'returncode': module_test.returncode
+            }
+        else:
+            results['exchange_module'] = {
+                'available': False,
+                'error': 'PowerShell not available to test Exchange module'
+            }
+        
+        # Test 3: Check Key Vault access
+        logging.info("Testing Key Vault access...")
+        try:
+            key_vault_url = KEY_VAULT_URL
+            if key_vault_url and key_vault_client:
+                # Try to access the certificate secret
+                cert_secret = key_vault_client.get_secret('powershell-cert-data')
+                
+                results['key_vault'] = {
+                    'accessible': True,
+                    'certificate_found': len(cert_secret.value) > 0,
+                    'certificate_length': len(cert_secret.value)
+                }
+            else:
+                results['key_vault'] = {
+                    'accessible': False,
+                    'error': 'KEY_VAULT_URL not configured or client not available'
+                }
+        except Exception as kv_error:
+            results['key_vault'] = {
+                'accessible': False,
+                'error': str(kv_error)
+            }
+        
+        # Test 4: Check environment variables
+        results['environment'] = {
+            'ENTRA_CLIENT_ID': bool(ENTRA_CLIENT_ID),
+            'KEY_VAULT_URL': bool(KEY_VAULT_URL),
+            'USE_KEY_VAULT': str(USE_KEY_VAULT)
+        }
+        
+        # Test 5: Try to import our PowerShell module
+        try:
+            from exchange_powershell_linux import ExchangePowerShellExecutor
+            results['powershell_module'] = {
+                'importable': True,
+                'class_available': True
+            }
+        except ImportError as import_error:
+            results['powershell_module'] = {
+                'importable': False,
+                'error': str(import_error)
+            }
+        
+        return func.HttpResponse(
+            json.dumps({
+                "success": True,
+                "tests": results,
+                "summary": {
+                    "powershell_ready": results.get('powershell_core', {}).get('available', False),
+                    "exchange_ready": results.get('exchange_module', {}).get('available', False),
+                    "keyvault_ready": results.get('key_vault', {}).get('accessible', False),
+                    "module_ready": results.get('powershell_module', {}).get('importable', False)
+                }
+            }, indent=2),
+            status_code=200,
+            mimetype="application/json"
+        )
+        
+    except Exception as e:
+        logging.error(f"PowerShell test failed: {e}")
+        return func.HttpResponse(
+            json.dumps({
+                "success": False,
+                "error": str(e),
+                "tests": results
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
 
 # Configuration
 KEY_VAULT_URL = os.environ.get('KEY_VAULT_URL', '')  # e.g., https://fleetbridge-vault.vault.azure.net/
@@ -1189,10 +1547,10 @@ async def find_equipment_mailbox(graph_client, primary_smtp, alias):
         return None
 
 
-async def update_equipment_mailbox(graph_client, device, equipment_domain, access_token):
+async def update_equipment_mailbox(graph_client, device, equipment_domain, access_token, app_id=None, key_vault_url=None):
     """
     Update an equipment mailbox based on MyGeotab device data.
-    Uses Graph API for display name, EWS for mailbox settings (due to equipment mailbox restrictions).
+    Uses Graph API for basic settings and PowerShell for calendar processing.
     Does NOT create mailboxes - only updates existing ones.
     
     Args:
@@ -1200,6 +1558,8 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
         device: MyGeotab device dict
         equipment_domain: Email domain for equipment mailboxes
         access_token: OAuth access token for EWS authentication
+        app_id: Application ID for PowerShell authentication
+        key_vault_url: Key Vault URL containing certificate for PowerShell authentication
     """
     serial_number = device.get('SerialNumber', '').lower()
     if not serial_number:
@@ -1252,12 +1612,28 @@ async def update_equipment_mailbox(graph_client, device, equipment_domain, acces
         await graph_client.users.by_user_id(mailbox.id).mailbox_settings.patch(mailbox_settings_update)
         logging.info(f"✓ Successfully updated mailbox settings for {primary_smtp}")
         
-        # Calendar booking settings
-        bookable = device.get('Bookable', False)
-        if not bookable:
-            logging.info(f"Bookable=False: Booking disabled for {primary_smtp}")
+        # Calendar processing settings using Azure Container App with PowerShell (SCALABLE SOLUTION!)
+        # This replaces the non-functional PowerShell integration with a scalable Container App
+        if app_id and key_vault_url:
+            try:
+                logging.info(f"Updating calendar processing settings for {primary_smtp} via Container App")
+                ps_result = update_equipment_mailbox_calendar_processing_containerapp(
+                    access_token,
+                    primary_smtp, 
+                    device['name']
+                )
+                
+                if ps_result.get('success'):
+                    logging.info(f"✓ Successfully updated calendar processing for {primary_smtp} via Container App")
+                else:
+                    logging.warning(f"⚠️ Failed to update calendar processing for {primary_smtp}: {ps_result.get('error', 'Unknown error')}")
+                    # Don't fail the entire update if PowerShell fails - Graph updates are still valuable
+                    
+            except Exception as ps_error:
+                logging.error(f"Error executing PowerShell for {primary_smtp}: {ps_error}")
+                # Continue with the update even if PowerShell fails
         else:
-            logging.info(f"Bookable=True: Booking enabled for {primary_smtp}")
+            logging.warning("PowerShell credentials not provided - skipping calendar processing settings")
         
         logging.info(f"Successfully updated mailbox: {primary_smtp}")
         return {'success': True, 'email': primary_smtp, 'displayName': display_name}
@@ -1444,6 +1820,21 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
         
+        # Get PowerShell credentials for Exchange cmdlets
+        app_id = ENTRA_CLIENT_ID  # Same app ID used for Graph authentication
+        key_vault_url = KEY_VAULT_URL  # Key Vault URL for certificate retrieval
+        try:
+            if key_vault_client and app_id and key_vault_url:
+                logging.info(f"PowerShell credentials prepared: AppId={app_id[:8] if app_id else 'None'}..., KeyVault={key_vault_url}")
+            else:
+                logging.warning("PowerShell credentials not available - missing app_id or key_vault_url")
+                app_id = None
+                key_vault_url = None
+        except Exception as e:
+            logging.warning(f"PowerShell credentials setup failed: {e}")
+            app_id = None
+            key_vault_url = None
+        
         # Get Graph client with application token
         graph_client = await get_delegated_graph_client(access_token)
         
@@ -1453,7 +1844,14 @@ async def sync_to_exchange(req: func.HttpRequest) -> func.HttpResponse:
             if not device.get('SerialNumber'):
                 continue
             
-            result = await update_equipment_mailbox(graph_client, device, equipment_domain, access_token)
+            result = await update_equipment_mailbox(
+                graph_client, 
+                device, 
+                equipment_domain, 
+                access_token,
+                app_id=app_id,
+                key_vault_url=key_vault_url
+            )
             results.append({
                 'device': device.get('Name'),
                 'serialNumber': device.get('SerialNumber'),

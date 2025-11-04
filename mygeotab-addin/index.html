@@ -775,8 +775,8 @@
             let api;
             let state;
 
-            // Hardcoded Azure Function URL
-            const FLEETBRIDGE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net';
+            // Updated to use Azure Container Apps instead of Azure Functions
+            const FLEETBRIDGE_FUNCTION_URL = 'https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io';
 
             const REQUIRED_PROPERTIES = [
                 // Booking Configuration
@@ -2032,7 +2032,7 @@
 
                     // Build request body with Client API Key
                     const requestBody = {
-                        clientId: clientApiKey
+                        apiKey: clientApiKey
                     };
 
                     if (maxDevices > 0) {
@@ -2040,14 +2040,21 @@
                     }
 
                     console.log('Calling sync endpoint:', endpoint);
+                    console.log('Request body:', requestBody);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                     
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(requestBody)
+                        body: JSON.stringify(requestBody),
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
 
                     const result = await response.json();
 
@@ -2093,11 +2100,12 @@
                     
                     syncSummary.innerHTML = '';
                     syncResult.textContent = `Error: ${error.message}\n\nPlease check:\n` +
-                        '1. Azure Function URL and Key are correct\n' +
+                        '1. Container App is running and accessible\n' +
                         '2. Client API Key is valid (or MyGeotab credentials are available)\n' +
-                        '3. Azure Function has been deployed with Exchange sync endpoint\n' +
+                        '3. Container App has been deployed with Exchange sync endpoint\n' +
                         '4. Entra app registration is configured with proper permissions\n' +
-                        '5. Certificate is uploaded to Key Vault\n\n' +
+                        '5. Certificate is uploaded to Key Vault\n' +
+                        '6. Network connectivity to Azure Container Apps\n\n' +
                         'See browser console for more details.';
                     syncResultContainer.style.display = 'block';
                 } finally {

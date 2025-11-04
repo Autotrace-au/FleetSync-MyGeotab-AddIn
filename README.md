@@ -43,6 +43,26 @@ FleetBridge is a comprehensive multi-tenant SaaS solution that bridges MyGeotab 
 - **Control access** with group-based permissions and booking approvers
 - **Track usage** with Application Insights telemetry
 
+## ⚡ Getting Started
+
+### For New Clients
+1. **[Setup Exchange Permissions](./docs/MODERN_RBAC_SETUP.md)** - One-time Exchange RBAC configuration
+2. **[Quick Start Guide](./docs/QUICK_START.md)** - Complete deployment walkthrough
+3. **[Client Configuration](./docs/CLIENT_CONFIGURATION.md)** - Tenant-specific setup
+
+### For Existing Clients
+- **[Migration Guide](./docs/MIGRATION_GUIDE.md)** - Upgrade from legacy Application Access Policies
+- **[Troubleshooting](./docs/DEPLOYMENT_COMPLETE.md)** - Common issues and solutions
+
+## 🔒 Security & Multi-Tenancy
+
+FleetBridge uses **Microsoft's modern Exchange RBAC system** for secure multi-tenant operation:
+
+✅ **Per-tenant isolation** - Each client manages their own permissions  
+✅ **Equipment-only access** - Scoped to equipment mailboxes only  
+✅ **Certificate-based auth** - No shared secrets or passwords  
+✅ **Audit logging** - Complete operation tracking  
+
 ## 📋 What This Add-In Does
 
 This Add-In provides a complete property management interface with three main tabs:
