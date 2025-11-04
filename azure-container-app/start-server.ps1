@@ -1,8 +1,9 @@
 # PowerShell HTTP Server for Exchange Calendar Processing
 # This creates a simple HTTP server that processes Exchange calendar requests
 
-$port = 8080
 # PowerShell HTTP Server for Exchange Calendar Processing
+# This creates a simple HTTP server that processes Exchange calendar requests
+
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add('http://+:8080/')
 $listener.Start()
@@ -92,7 +93,7 @@ while ($listener.IsListening) {
             }
         }
         elseif ($path -eq "/api/sync-to-exchange" -and $method -eq "POST") {
-            # MyGeotab Add-in compatibility endpoint
+            # MyGeotab Add-in compatibility endpoint - PRODUCTION VERSION
             $reader = New-Object System.IO.StreamReader($request.InputStream)
             $requestBody = $reader.ReadToEnd()
             $reader.Close()
@@ -104,35 +105,113 @@ while ($listener.IsListening) {
                 $apiKey = if ($requestData.clientId) { $requestData.clientId } else { $requestData.apiKey }
                 $maxDevices = if ($requestData.maxDevices) { $requestData.maxDevices } else { 0 }
                 
-                Write-Host "Sync request from add-in: apiKey=$apiKey, maxDevices=$maxDevices"
+                Write-Host "=== PRODUCTION SYNC REQUEST ==="
+                Write-Host "API Key: $($apiKey.Substring(0,8))..., Max Devices: $maxDevices"
                 
-                # For now, return a test response that matches the add-in's expected format
-                # TODO: Integrate with actual MyGeotab API and process multiple devices
-                $syncResponse = @{
-                    success = $true
-                    processed = if ($maxDevices -gt 0) { $maxDevices } else { 1 }
-                    successful = if ($maxDevices -gt 0) { $maxDevices } else { 1 }
-                    timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-                    message = "Container App integration test successful"
-                    details = @{
-                        apiKey = $apiKey
-                        maxDevices = $maxDevices
-                        containerApp = "exchange-calendar-processor"
-                    }
-                } | ConvertTo-Json -Depth 3
-                
-                $response.StatusCode = 200
-                $response.ContentType = "application/json"
-                $buffer = [System.Text.Encoding]::UTF8.GetBytes($syncResponse)
-                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                if (-not $apiKey) {
+                    $errorResponse = @{
+                        success = $false
+                        timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        error = "API Key is required for MyGeotab authentication"
+                        processed = 0
+                        successful = 0
+                        failed = 0
+                    } | ConvertTo-Json
+                    
+                    $response.StatusCode = 400
+                    $response.ContentType = "application/json"
+                    $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
+                    $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
+                else {
+                    # Call the production MyGeotab sync script
+                    Write-Host "Executing production MyGeotab to Exchange sync..."
+                    $syncResult = & ./mygeotab-exchange-sync.ps1 -ApiKey $apiKey -MaxDevices $maxDevices
+                    
+                    $response.StatusCode = 200
+                    $response.ContentType = "application/json"
+                    $buffer = [System.Text.Encoding]::UTF8.GetBytes($syncResult)
+                    $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
             }
             catch {
                 $errorResponse = @{
                     success = $false
+                    timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                    error = "Error processing production sync request: $($_.Exception.Message)"
                     processed = 0
                     successful = 0
+                    failed = 0
+                } | ConvertTo-Json
+                
+                $response.StatusCode = 500
+                $response.ContentType = "application/json"
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            }
+        }
+        elseif ($path -eq "/api/update-device-properties" -and $method -eq "POST") {
+            # Update device properties endpoint
+            $reader = New-Object System.IO.StreamReader($request.InputStream)
+            $requestBody = $reader.ReadToEnd()
+            $reader.Close()
+            
+            try {
+                $requestData = $requestBody | ConvertFrom-Json
+                
+                # Extract parameters
+                $apiKey = if ($requestData.clientId) { $requestData.clientId } else { $requestData.apiKey }
+                $deviceUpdates = $requestData.deviceUpdates
+                
+                Write-Host "=== UPDATE DEVICE PROPERTIES REQUEST ==="
+                Write-Host "API Key: $($apiKey.Substring(0,8))..., Devices: $($deviceUpdates.Count)"
+                
+                if (-not $apiKey) {
+                    $errorResponse = @{
+                        success = $false
+                        timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        error = "API Key is required for MyGeotab authentication"
+                        updated = 0
+                        failed = 0
+                    } | ConvertTo-Json
+                    
+                    $response.StatusCode = 400
+                    $response.ContentType = "application/json"
+                    $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
+                    $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
+                elseif (-not $deviceUpdates -or $deviceUpdates.Count -eq 0) {
+                    $errorResponse = @{
+                        success = $false
+                        timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        error = "deviceUpdates array is required"
+                        updated = 0
+                        failed = 0
+                    } | ConvertTo-Json
+                    
+                    $response.StatusCode = 400
+                    $response.ContentType = "application/json"
+                    $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
+                    $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
+                else {
+                    # Call the update device properties script
+                    Write-Host "Executing device property updates..."
+                    $updateResult = & ./update-device-properties.ps1 -ApiKey $apiKey -DeviceUpdates $deviceUpdates
+                    
+                    $response.StatusCode = 200
+                    $response.ContentType = "application/json"
+                    $buffer = [System.Text.Encoding]::UTF8.GetBytes($updateResult)
+                    $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                }
+            }
+            catch {
+                $errorResponse = @{
+                    success = $false
                     timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-                    error = "Error processing sync request: $($_.Exception.Message)"
+                    error = "Error processing update request: $($_.Exception.Message)"
+                    updated = 0
+                    failed = 0
                 } | ConvertTo-Json
                 
                 $response.StatusCode = 500

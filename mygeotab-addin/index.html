@@ -1763,8 +1763,8 @@
             const CLIENT_API_KEY = null;  // Set to client's API key or leave as null
 
             /**
-             * Update device properties (v6.1 - Azure Function with User Configuration)
-             * Uses Python Azure Function to update properties via MyGeotab Python SDK
+             * Update device properties (v6.3 - Container App with Optional Function Key)
+             * Uses Python Azure Function or Container App to update properties via MyGeotab Python SDK
              * This avoids the JsonSerializerException issues with the JavaScript SDK
              *
              * Configuration is loaded from localStorage (set in Sync to Exchange tab)
@@ -1790,9 +1790,8 @@
                     throw new Error('Azure Function URL not configured. Please configure it in the "Sync to Exchange" tab.');
                 }
 
-                if (!azureFunctionKey) {
-                    throw new Error('Azure Function Key not configured. Please configure it in the "Sync to Exchange" tab.');
-                }
+                // Function Key is optional for Container App deployments
+                // (only required for Azure Functions with function-level authentication)
 
                 try {
                     let payload;
@@ -1825,9 +1824,13 @@
                     let baseUrl = azureFunctionUrl.trim();
                     baseUrl = baseUrl.replace(/\/api\/[^/]+\/?$/, '');
                     baseUrl = baseUrl.replace(/\/$/, '');
-                    const endpoint = `${baseUrl}/api/update-device-properties?code=${encodeURIComponent(azureFunctionKey)}`;
                     
-                    console.log('URL:', endpoint);
+                    // Add function key to query string only if provided (for Azure Functions)
+                    const endpoint = azureFunctionKey 
+                        ? `${baseUrl}/api/update-device-properties?code=${encodeURIComponent(azureFunctionKey)}`
+                        : `${baseUrl}/api/update-device-properties`;
+                    
+                    console.log('URL:', endpoint.replace(/code=[^&]+/, 'code=***'));
 
                     // Call Azure Function
                     const response = await fetch(endpoint, {
