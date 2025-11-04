@@ -2043,7 +2043,7 @@
                     console.log('Request body:', requestBody);
                     
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout (2 minutes)
                     
                     const response = await fetch(endpoint, {
                         method: 'POST',
@@ -2096,17 +2096,27 @@
 
                 } catch (error) {
                     console.error('Sync error:', error);
-                    updateSyncStatus(`Sync failed: ${error.message}`, 'error');
+                    
+                    // Check if this was a timeout abort
+                    const isTimeout = error.name === 'AbortError';
+                    const errorMsg = isTimeout 
+                        ? `Request timed out after 120 seconds. The sync is still processing on the server. Please check your equipment mailboxes in Exchange or try again with fewer devices.`
+                        : error.message;
+                    
+                    updateSyncStatus(`Sync failed: ${errorMsg}`, 'error');
                     
                     syncSummary.innerHTML = '';
-                    syncResult.textContent = `Error: ${error.message}\n\nPlease check:\n` +
-                        '1. Container App is running and accessible\n' +
-                        '2. Client API Key is valid (or MyGeotab credentials are available)\n' +
-                        '3. Container App has been deployed with Exchange sync endpoint\n' +
-                        '4. Entra app registration is configured with proper permissions\n' +
-                        '5. Certificate is uploaded to Key Vault\n' +
-                        '6. Network connectivity to Azure Container Apps\n\n' +
-                        'See browser console for more details.';
+                    syncResult.textContent = `Error: ${errorMsg}\n\n` +
+                        (isTimeout 
+                            ? 'The sync may have completed successfully on the server despite the timeout.\nCheck your equipment mailboxes in Exchange Online.\n\nTo avoid timeouts:\n- Reduce the number of devices being synced\n- Check your network connection\n- The sync typically takes 30-60 seconds per device'
+                            : 'Please check:\n' +
+                                '1. Container App is running and accessible\n' +
+                                '2. Client API Key is valid (or MyGeotab credentials are available)\n' +
+                                '3. Container App has been deployed with Exchange sync endpoint\n' +
+                                '4. Entra app registration is configured with proper permissions\n' +
+                                '5. Certificate is uploaded to Key Vault\n' +
+                                '6. Network connectivity to Azure Container Apps') +
+                        '\n\nSee browser console for more details.';
                     syncResultContainer.style.display = 'block';
                 } finally {
                     triggerBtn.disabled = false;
