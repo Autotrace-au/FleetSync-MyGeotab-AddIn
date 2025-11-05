@@ -1,4 +1,4 @@
-# FleetBridge Deployment Complete! 🎉
+# FleetBridge Deployment Complete
 
 ## Deployment Summary
 
@@ -18,13 +18,13 @@ Your FleetBridge multi-tenant Azure Function has been successfully deployed!
 
 #### Health Check (Public)
 ```
-https://fleetbridge-mygeotab.azurewebsites.net/api/health
+https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/health
 ```
-Status: ✅ Healthy (Key Vault enabled)
+Status: Healthy (Key Vault enabled)
 
 #### Update Device Properties (Authenticated)
 ```
-https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties
+https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/update-device-properties
 ```
 Requires: Function key authentication
 
@@ -64,7 +64,7 @@ az functionapp keys list \
    - In MyGeotab, go to **Administration → FleetBridge Properties**
    - Click the **Sync to Exchange** tab
    - In the **Azure Function Configuration** section, enter:
-     - **Function URL**: `https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties`
+  - **API Base URL**: `https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io`
      - **Function Key**: Your function key (from `.azure-function-key.txt`)
      - **Client API Key**: Leave blank for now (optional, for multi-tenant)
    - Click **Save Configuration**
@@ -103,7 +103,7 @@ This will:
 # Get your function key first
 FUNCTION_KEY=$(az functionapp keys list --resource-group FleetBridgeRG --name fleetbridge-mygeotab --query "functionKeys.default" --output tsv)
 
-curl -X POST "https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=$FUNCTION_KEY" \
+curl -X POST "https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/update-device-properties" \
   -H "Content-Type: application/json" \
   -d '{
     "database": "your_database",
@@ -123,7 +123,7 @@ curl -X POST "https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-p
 # Get your function key first
 FUNCTION_KEY=$(az functionapp keys list --resource-group FleetBridgeRG --name fleetbridge-mygeotab --query "functionKeys.default" --output tsv)
 
-curl -X POST "https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=$FUNCTION_KEY" \
+curl -X POST "https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/update-device-properties" \
   -H "Content-Type: application/json" \
   -d '{
     "apiKey": "client-api-key-here",
@@ -189,7 +189,7 @@ For 50 clients with 100 requests/day each:
 ## Troubleshooting
 
 ### Function Not Working
-1. Check health endpoint: `curl https://fleetbridge-mygeotab.azurewebsites.net/api/health`
+1. Check health endpoint: `curl https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/health`
 2. View logs in Application Insights
 3. Verify Key Vault permissions: Function App should have "Key Vault Secrets User" role
 
@@ -215,12 +215,12 @@ az functionapp cors add \
 
 ## What's Next?
 
-1. ✅ **Rename GitHub Repository** to `FleetBridge-MyGeotab-AddIn`
-2. ✅ **Create Private Version** of index.html with function key
-3. ✅ **Onboard First Client** using `onboard-client.sh`
-4. ✅ **Test Integration** with MyGeotab
-5. ✅ **Set Up Monitoring** in Application Insights
-6. ✅ **Document Billing Process** for clients
+1. **Rename GitHub Repository** to `FleetBridge-MyGeotab-AddIn`
+2. **Create Private Version** of index.html with function key
+3. **Onboard First Client** using `onboard-client.sh`
+4. **Test Integration** with MyGeotab
+5. **Set Up Monitoring** in Application Insights
+6. **Document Billing Process** for clients
 
 ---
 
@@ -233,5 +233,5 @@ For issues or questions:
 
 ---
 
-**Congratulations! Your FleetBridge multi-tenant SaaS platform is now live!** 🚀
+**Congratulations! Your FleetBridge multi-tenant SaaS platform is now live!**
 

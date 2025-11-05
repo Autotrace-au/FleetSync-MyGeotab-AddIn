@@ -30,6 +30,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+# Log incoming properties
+Write-Host "=== INCOMING PROPERTIES ==="
+Write-Host ($Properties | ConvertTo-Json -Depth 10)
+Write-Host "==========================="
+
 # Initialize response
 $response = @{
     success = $false
@@ -77,135 +82,19 @@ try {
     Write-Host "Retrieved credentials for database: $mygeotabDatabase"
     $response.database = $mygeotabDatabase
     
-    # Build Python script to update device properties (matches Azure Function logic)
-    $pythonScript = @"
-import mygeotab
-import sys
-import json
-
-try:
-    # Authenticate
-    api = mygeotab.API(
-        username='$mygeotabUsername',
-        password='$mygeotabPassword',
-        database='$mygeotabDatabase'
-    )
-    api.authenticate()
+    # Convert properties to JSON for Python
+    $propertiesJson = $Properties | ConvertTo-Json -Compress -Depth 10
     
-    # Get device
-    print(f'Fetching device: $DeviceId', file=sys.stderr)
-    devices = api.get('Device', search={'id': '$DeviceId'})
-    if not devices:
-        print(json.dumps({
-            'success': False,
-            'error': 'Device not found: $DeviceId'
-        }))
-        sys.exit(1)
-    
-    device = devices[0]
-    print(f'Device retrieved: {device.get("name")}', file=sys.stderr)
-    
-    # Fetch property definitions
-    print('Fetching property definitions', file=sys.stderr)
-    all_properties = api.get('Property')
-    
-    # Property name mapping (matches Azure Function)
-    property_mapping = {
-        'bookable': 'Enable Equipment Booking',
-        'recurring': 'Allow Recurring Bookings',
-        'approvers': 'Booking Approvers',
-        'fleetManagers': 'Fleet Managers',
-        'conflicts': 'Allow Double Booking',
-        'windowDays': 'Booking Window (Days)',
-        'maxDurationHours': 'Maximum Booking Duration (Hours)',
-        'language': 'Mailbox Language'
+    # Execute external Python script to avoid here-string indentation issues
+    Write-Host "Executing Python script to update device (external file)..."
+    $pythonOutput = $propertiesJson | python3 -u update_device_properties.py --username $mygeotabUsername --password $mygeotabPassword --database $mygeotabDatabase --device-id $DeviceId 2>&1
+    # Emit all diagnostic lines BEFORE parsing result (excluding the final JSON line)
+    $outputLinesAll = $pythonOutput -split "`n"
+    if ($outputLinesAll.Length -gt 1) {
+        Write-Host "=== PYTHON DIAGNOSTICS (BEGIN) ==="
+        $outputLinesAll[0..($outputLinesAll.Length-2)] | ForEach-Object { Write-Host $_ }
+        Write-Host "=== PYTHON DIAGNOSTICS (END) ==="
     }
-    
-    # Build property lookup
-    prop_lookup = {}
-    for key, prop_name in property_mapping.items():
-        matching_prop = next((p for p in all_properties if p.get('name') == prop_name), None)
-        if matching_prop:
-            prop_lookup[key] = {
-                'id': matching_prop['id'],
-                'setId': matching_prop.get('propertySet', {}).get('id'),
-                'name': prop_name
-            }
-    
-    print(f'Found {len(prop_lookup)} property definitions', file=sys.stderr)
-    
-    # Get properties to update from PowerShell
-    properties = $($Properties | ConvertTo-Json -Compress -Depth 10)
-    
-    # Build updated customProperties array
-    custom_properties = device.get('customProperties', [])
-    
-    for key, value in properties.items():
-        if key not in prop_lookup:
-            print(f'Property not found: {key}', file=sys.stderr)
-            continue
-        
-        prop_info = prop_lookup[key]
-        
-        # Convert empty strings to None
-        if value == '':
-            value = None
-        
-        # Find existing PropertyValue
-        existing_index = next(
-            (i for i, pv in enumerate(custom_properties) 
-             if pv.get('property', {}).get('id') == prop_info['id']),
-            None
-        )
-        
-        # Create PropertyValue structure
-        property_value = {
-            'property': {
-                'id': prop_info['id'],
-                'propertySet': {
-                    'id': prop_info['setId']
-                }
-            },
-            'value': value
-        }
-        
-        if existing_index is not None:
-            # Update existing
-            print(f'Updating property: {key} = {value}', file=sys.stderr)
-            custom_properties[existing_index] = property_value
-        else:
-            # Add new
-            print(f'Adding property: {key} = {value}', file=sys.stderr)
-            custom_properties.append(property_value)
-    
-    # Update device customProperties
-    device['customProperties'] = custom_properties
-    
-    # Call Set to update the device
-    print('Calling Set to update device', file=sys.stderr)
-    api.set('Device', device)
-    
-    print('Device updated successfully', file=sys.stderr)
-    
-    print(json.dumps({
-        'success': True,
-        'message': f'Device {device.get("name")} updated successfully',
-        'database': '$mygeotabDatabase',
-        'deviceId': '$DeviceId'
-    }))
-    
-except Exception as e:
-    print(f'Error updating device: {str(e)}', file=sys.stderr)
-    print(json.dumps({
-        'success': False,
-        'error': str(e)
-    }))
-    sys.exit(1)
-"@
-    
-    # Execute Python script
-    Write-Host "Executing Python script to update device..."
-    $pythonOutput = $pythonScript | python3 -u - 2>&1
     $pythonExitCode = $LASTEXITCODE
     
     if ($pythonExitCode -eq 0) {
@@ -218,7 +107,8 @@ except Exception as e:
         $response.message = $result.message
         $response.database = $result.database
         
-        Write-Host "✓ Successfully updated device: $DeviceId"
+    Write-Host "✓ Successfully updated device: $DeviceId"
+    Write-Host "Result JSON: $jsonLine"
     }
     else {
         # Try to parse error from output

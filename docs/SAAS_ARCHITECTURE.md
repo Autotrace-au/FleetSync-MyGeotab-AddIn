@@ -88,7 +88,7 @@ FleetBridge is a **true SaaS application** where:
    https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize
      ?client_id=<your-app-id>
      &response_type=code
-     &redirect_uri=https://fleetbridge-mygeotab.azurewebsites.net/api/auth/callback
+    &redirect_uri=https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/callback
      &response_mode=query
      &scope=https://graph.microsoft.com/Calendars.ReadWrite
             https://graph.microsoft.com/MailboxSettings.ReadWrite
@@ -111,7 +111,7 @@ FleetBridge is a **true SaaS application** where:
 4. Client clicks "Accept"
 
 5. Microsoft redirects back to your function:
-   https://fleetbridge-mygeotab.azurewebsites.net/api/auth/callback
+    https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/callback
      ?code=<auth-code>
      &state=<client-id>
 
@@ -154,7 +154,7 @@ Function:
 az ad app create \
   --display-name "FleetBridge SaaS" \
   --sign-in-audience AzureADMultipleOrgs \
-  --web-redirect-uris "https://fleetbridge-mygeotab.azurewebsites.net/api/auth/callback"
+    --web-redirect-uris "https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/callback"
 
 APP_ID=$(az ad app list --display-name "FleetBridge SaaS" --query "[0].appId" -o tsv)
 

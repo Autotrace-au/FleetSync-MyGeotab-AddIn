@@ -39,9 +39,10 @@ COPY exchange-processor.ps1 .
 COPY start-server.ps1 .
 COPY mygeotab-exchange-sync.ps1 .
 COPY update-device-properties.ps1 .
+COPY update_device_properties.py .
 
 # Make scripts executable
-RUN chmod +x *.ps1
+RUN chmod +x *.ps1 && chmod +x update_device_properties.py
 
 # Expose port
 EXPOSE 8080

@@ -47,7 +47,7 @@ chmod +x deploy-full-setup.sh onboard-client.sh
 - Deploys the function code
 
 **At the end, you'll get:**
-- Function URL: `https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties`
+- API Base URL: `https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io`
 - Function Key: `abc123...` (save this!)
 - Key Vault URL: `https://fleetbridge-vault.vault.azure.net/`
 
@@ -73,7 +73,7 @@ Edit `index.html` (lines 1671-1686):
 
 ```javascript
 // Replace these values:
-const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
+const FLEETBRIDGE_API_BASE = 'https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io';
 const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY_FROM_STEP_1';
 const CLIENT_API_KEY = 'YOUR_CLIENT_API_KEY_FROM_STEP_2';
 ```
@@ -123,7 +123,7 @@ git push origin main
 ### Test 1: Health Check
 
 ```bash
-curl https://fleetbridge-mygeotab.azurewebsites.net/api/health
+curl https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/health
 ```
 
 **Expected response:**
@@ -138,7 +138,7 @@ curl https://fleetbridge-mygeotab.azurewebsites.net/api/health
 ### Test 2: Update Device Properties
 
 ```bash
-curl -X POST "https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties?code=YOUR_FUNCTION_KEY" \
+curl -X POST "https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/update-device-properties" \
   -H "Content-Type: application/json" \
   -d '{
     "apiKey": "YOUR_CLIENT_API_KEY",

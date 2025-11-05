@@ -1,16 +1,16 @@
 # FleetBridge SaaS - Deployment Guide
 
-## 🎉 True Multi-Tenant SaaS Architecture
+## True Multi-Tenant SaaS Architecture
 
 Your FleetBridge app is now a **true SaaS product** ready for the MyGeotab Marketplace!
 
 ### Key Benefits
 
-✅ **Zero setup for clients** - Just click "Connect to Exchange"  
-✅ **One Entra app** - Supports unlimited client organizations  
-✅ **No admin consent** - Users grant permissions individually  
-✅ **Scalable** - Single infrastructure serves thousands of clients  
-✅ **Cost-effective** - ~$3-10/month total (not per-client!)
+- **Zero setup for clients** - Just click "Connect to Exchange"
+- **One Entra app** - Supports unlimited client organizations
+- **No admin consent** - Users grant permissions individually
+- **Scalable** - Single infrastructure serves thousands of clients
+- **Cost-effective** - ~$3-10/month total (not per-client!)
 
 ---
 
@@ -34,7 +34,7 @@ This creates:
 After deployment, update these in the Add-In:
 
 ```
-Azure Function URL: https://fleetbridge-mygeotab.azurewebsites.net
+API Base URL: https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io
 Azure Function Key: <from deployment output>
 Client API Key: <from onboard-client.sh>
 ```
@@ -59,11 +59,11 @@ This stores MyGeotab credentials in Key Vault and returns an API key.
 2. Clicks "Connect to Exchange"
 3. Popup opens to Microsoft consent page
 4. Client clicks "Accept" (grants FleetBridge access to their Exchange)
-5. Popup closes, status shows "✅ Connected to Exchange"
+5. Popup closes, status shows "Connected to Exchange"
 6. Client clicks "Trigger Sync Now"
 7. Done! Devices sync to their Exchange mailboxes
 
-**No Azure portal access needed. No Entra app creation. No certificates. Just works! 🚀**
+**No Azure portal access needed. No Entra app creation. No certificates. Just works!**
 
 ---
 
@@ -204,7 +204,7 @@ Azure Function:
 
 - **Display Name:** FleetBridge SaaS
 - **Sign-in Audience:** AzureADMultipleOrgs (multi-tenant)
-- **Redirect URIs:** `https://fleetbridge-mygeotab.azurewebsites.net/api/auth/callback`
+- **Redirect URIs:** `https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/callback` (if auth endpoints migrated)
 
 ### Permissions (Delegated)
 
@@ -225,7 +225,7 @@ Azure Function:
 
 Visit this URL (replace `{apikey}`):
 ```
-https://fleetbridge-mygeotab.azurewebsites.net/api/auth/login?clientId={apikey}
+https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/login?clientId={apikey}
 ```
 
 You should:
@@ -239,7 +239,7 @@ You should:
 
 ```bash
 curl -X POST \
-  https://fleetbridge-mygeotab.azurewebsites.net/api/auth/status?code={function-key} \
+   https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/auth/status \
   -H 'Content-Type: application/json' \
   -d '{"clientId": "{apikey}"}'
 ```
@@ -257,7 +257,7 @@ Response (connected):
 
 ```bash
 curl -X POST \
-  https://fleetbridge-mygeotab.azurewebsites.net/api/sync-to-exchange?code={function-key} \
+   https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/sync-to-exchange \
   -H 'Content-Type: application/json' \
   -d '{
     "apiKey": "{apikey}",

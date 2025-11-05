@@ -1,8 +1,81 @@
 # PowerShell HTTP Server for Exchange Calendar Processing
-# This creates a simple HTTP server that processes Exchange calendar requests
+# Multi-tenant SaaS version with API key (Function key style) enforcement
+# TODO: Replace environment variable key store with Azure Key Vault + persistent metadata (Cosmos/Table) for production
 
-# PowerShell HTTP Server for Exchange Calendar Processing
-# This creates a simple HTTP server that processes Exchange calendar requests
+function Get-AllowedApiKeys {
+    <#
+        Returns the set of allowed API keys.
+        Current strategy (bootstrap): comma-separated environment variable FLEETBRIDGE_ALLOWED_KEYS.
+        Upgrade path:
+          - Azure Key Vault secret "fleetbridge-apikeys" storing JSON array [{"keyId":"...","hash":"...","tenantId":"...","created":"...","revoked":false}]
+          - Cache in-memory with refresh TTL (e.g. 5 minutes)
+    #>
+    if (-not $script:ApiKeyCache -or (Get-Date) -gt $script:ApiKeyCacheExpiry) {
+        $raw = $env:FLEETBRIDGE_ALLOWED_KEYS
+        $list = @()
+        if ($raw) {
+            $list = $raw.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+        }
+        $script:ApiKeyCache = $list
+        # 5 minute cache
+        $script:ApiKeyCacheExpiry = (Get-Date).AddMinutes(5)
+    }
+    return $script:ApiKeyCache
+}
+
+function Test-ApiKey {
+    param(
+        [string]$ApiKey
+    )
+    if (-not $ApiKey) { return $false }
+    $allowed = Get-AllowedApiKeys
+    return $allowed -contains $ApiKey
+}
+
+function Test-ApiKeyAuthorization {
+    param(
+        [System.Net.HttpListenerRequest]$Request,
+        [System.Net.HttpListenerResponse]$Response
+    )
+    # Support both x-functions-key (Azure Functions style) and x-api-key headers
+    $apiKeyHeader = $Request.Headers['x-functions-key']
+    if (-not $apiKeyHeader) { $apiKeyHeader = $Request.Headers['x-api-key'] }
+    # Fallback: allow body-provided key for backward compatibility (deprecated)
+    $bodyKey = $null
+    try {
+        if ($Request.HasEntityBody) {
+            $sr = New-Object System.IO.StreamReader($Request.InputStream)
+            $rawBody = $sr.ReadToEnd(); $sr.Close()
+            if ($rawBody) {
+                try { $parsed = $rawBody | ConvertFrom-Json } catch { $parsed = $null }
+                if ($parsed -and $parsed.apiKey) { $bodyKey = $parsed.apiKey }
+                elseif ($parsed -and $parsed.clientId) { $bodyKey = $parsed.clientId }
+            }
+            # Reset stream position for subsequent handlers
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($rawBody)
+            $Request.InputStream.SetLength(0)
+            $Request.InputStream.Write($bytes,0,$bytes.Length)
+            $Request.InputStream.Position = 0
+        }
+    } catch {}
+
+    $apiKey = if ($apiKeyHeader) { $apiKeyHeader } else { $bodyKey }
+
+    if (-not (Test-ApiKey -ApiKey $apiKey)) {
+        $errorResponse = @{ 
+            success = $false
+            timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            error = 'Invalid or missing API key'
+        } | ConvertTo-Json
+        $Response.StatusCode = 401
+        $Response.ContentType = 'application/json'
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes($errorResponse)
+        $Response.OutputStream.Write($buffer,0,$buffer.Length)
+        $Response.Close()
+        return $null
+    }
+    return $apiKey
+}
 
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add('http://+:8080/')
@@ -48,6 +121,8 @@ while ($listener.IsListening) {
             $response.OutputStream.Write($buffer, 0, $buffer.Length)
         }
         elseif ($path -eq "/process-mailbox" -and $method -eq "POST") {
+            $validatedKey = Test-ApiKeyAuthorization -Request $request -Response $response
+            if (-not $validatedKey) { continue }
             # Calendar processing endpoint
             $reader = New-Object System.IO.StreamReader($request.InputStream)
             $requestBody = $reader.ReadToEnd()
@@ -93,6 +168,8 @@ while ($listener.IsListening) {
             }
         }
         elseif ($path -eq "/api/sync-to-exchange" -and $method -eq "POST") {
+            $validatedKey = Test-ApiKeyAuthorization -Request $request -Response $response
+            if (-not $validatedKey) { continue }
             # MyGeotab Add-in compatibility endpoint - PRODUCTION VERSION
             $reader = New-Object System.IO.StreamReader($request.InputStream)
             $requestBody = $reader.ReadToEnd()
@@ -151,6 +228,8 @@ while ($listener.IsListening) {
             }
         }
         elseif ($path -eq "/api/update-device-properties" -and $method -eq "POST") {
+            $validatedKey = Test-ApiKeyAuthorization -Request $request -Response $response
+            if (-not $validatedKey) { continue }
             # Update device properties endpoint
             $reader = New-Object System.IO.StreamReader($request.InputStream)
             $requestBody = $reader.ReadToEnd()

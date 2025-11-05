@@ -4,19 +4,19 @@
 
 FleetBridge SaaS now uses Microsoft's modern **Role Based Access Control (RBAC) for Applications in Exchange Online**. This replaces the legacy Application Access Policies and provides better security and tenant isolation.
 
-## ⚠️ Important Changes
+## Important Changes
 
 - **Legacy Application Access Policies are deprecated** and will be removed by Microsoft
 - **New setup required** for all client tenants using modern RBAC
 - **Better security** with granular equipment mailbox permissions
 - **No changes** to your existing MyGeotab Add-In interface
 
-## 🎯 Benefits
+## Benefits
 
-✅ **Enhanced Security**: Granular permissions scoped to equipment mailboxes only  
-✅ **Better Isolation**: Each tenant manages their own permissions independently  
-✅ **Future-Proof**: Uses Microsoft's latest recommended approach  
-✅ **Improved Performance**: Faster permission resolution  
+- **Enhanced Security**: Granular permissions scoped to equipment mailboxes only
+- **Better Isolation**: Each tenant manages their own permissions independently
+- **Future-Proof**: Uses Microsoft's latest recommended approach
+- **Improved Performance**: Faster permission resolution
 
 ## 📋 Prerequisites
 
@@ -28,7 +28,7 @@ FleetBridge SaaS now uses Microsoft's modern **Role Based Access Control (RBAC) 
 - Equipment mailboxes must already exist in your tenant
 - They should follow the naming pattern: `{serial}@{yourdomain}.com`
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### Step 1: Connect to Exchange Online PowerShell
 
@@ -82,7 +82,7 @@ RoleName                      GrantedPermissions          AllowedResourceScope  
 Application MailboxSettings.ReadWrite  MailboxSettings.ReadWrite   FleetBridge Equipment...    True
 ```
 
-## ✅ Verification
+## Verification
 
 ### Verify Service Principal
 ```powershell
@@ -99,7 +99,7 @@ Get-ManagementScope "FleetBridge Equipment Mailboxes"
 Get-ManagementRoleAssignment -App "FleetBridge SaaS"
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -122,7 +122,7 @@ If you encounter issues:
 2. Contact FleetBridge support with the error message
 3. Include the output of: `Test-ServicePrincipalAuthorization -Identity "FleetBridge SaaS"`
 
-## 🔄 Migration from Legacy Setup
+## Migration from Legacy Setup
 
 If you previously used Application Access Policies:
 
@@ -141,14 +141,14 @@ Remove-ApplicationAccessPolicy -Identity "PolicyName"
 # Get-DistributionGroup "FleetBridge-Equipment" | Remove-DistributionGroup
 ```
 
-## 📊 What This Setup Provides
+## What This Setup Provides
 
-✅ **Mailbox Settings Access**: FleetBridge can update auto-accept settings  
-✅ **Calendar Access**: FleetBridge can manage booking windows  
-✅ **Equipment Mailbox Scope**: Only equipment mailboxes, not user mailboxes  
-✅ **Tenant Isolation**: Permissions limited to your tenant only  
+- **Mailbox Settings Access**: FleetBridge can update auto-accept settings
+- **Calendar Access**: FleetBridge can manage booking windows
+- **Equipment Mailbox Scope**: Only equipment mailboxes, not user mailboxes
+- **Tenant Isolation**: Permissions limited to your tenant only
 
-## ⚡ Next Steps
+## Next Steps
 
 1. **Complete this setup** with your Exchange Administrator
 2. **Test equipment synchronization** in MyGeotab Add-In

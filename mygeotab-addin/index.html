@@ -1745,8 +1745,10 @@
              * For now, replace YOUR_FUNCTION_KEY with your actual key from:
              * az functionapp keys list --resource-group FleetBridgeRG --name fleetbridge-mygeotab
              */
-            const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
-            const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY';  // Replace with actual key - DO NOT commit to public repo!
+            // Legacy Azure Function constants (deprecated). Replaced by container app base URL.
+            const FLEETBRIDGE_API_BASE = 'https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io';
+            // Container App does not require a function key; leave blank for backwards compatibility logic.
+            const AZURE_FUNCTION_KEY = '';
 
             /**
              * Client API Key Configuration
@@ -1779,7 +1781,7 @@
                 console.log('Properties to update:', JSON.stringify(properties, null, 2));
 
                 // Get configuration from localStorage (use same keys as triggerSync)
-                const azureFunctionUrl = localStorage.getItem('fleetSyncFunctionUrl');
+                const azureFunctionUrl = localStorage.getItem('fleetSyncFunctionUrl') || FLEETBRIDGE_API_BASE;
                 const azureFunctionKey = localStorage.getItem('fleetSyncFunctionKey');
                 const clientApiKey = localStorage.getItem('fleetSyncClientApiKey');
 
@@ -1822,7 +1824,7 @@
                     
                     // Build endpoint URL (remove /api/... if present, add /api/update-device-properties)
                     let baseUrl = azureFunctionUrl.trim();
-                    baseUrl = baseUrl.replace(/\/api\/[^/]+\/?$/, '');
+                    // Normalize: strip trailing slashes only
                     baseUrl = baseUrl.replace(/\/$/, '');
                     
                     // Add function key to query string only if provided (for Azure Functions)
@@ -1888,7 +1890,7 @@
                 }
 
                 // Save to localStorage (URL is hardcoded, no Function Key needed)
-                localStorage.setItem('fleetSyncFunctionUrl', FLEETBRIDGE_FUNCTION_URL);
+                localStorage.setItem('fleetSyncFunctionUrl', FLEETBRIDGE_API_BASE);
                 localStorage.setItem('fleetSyncClientApiKey', apiKey);
 
                 showAzureFunctionResult('Configuration saved successfully!', 'success');
@@ -1942,7 +1944,7 @@
                 try {
                     showAzureFunctionResult('Testing connection...', 'info');
 
-                    const response = await fetch(`${FLEETBRIDGE_FUNCTION_URL}/api/health`, {
+                    const response = await fetch(`${FLEETBRIDGE_API_BASE}/api/health`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json'
@@ -2031,7 +2033,7 @@
                     updateSyncStatus('Synchronising with Exchange Online...', 'info');
 
                     // Build endpoint URL using hardcoded Function URL
-                    const endpoint = `${FLEETBRIDGE_FUNCTION_URL}/api/sync-to-exchange`;
+                    const endpoint = `${FLEETBRIDGE_API_BASE}/api/sync-to-exchange`;
 
                     // Build request body with Client API Key
                     const requestBody = {

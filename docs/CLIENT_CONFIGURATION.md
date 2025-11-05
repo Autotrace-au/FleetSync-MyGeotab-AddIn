@@ -15,7 +15,7 @@ Generate using: ./azure-function/onboard-client.sh
 - Used to identify the client and retrieve their MyGeotab credentials from Key Vault
 - **This is the ONLY secret clients need** - simpler and more secure!
 
-**Note:** The Function URL is hardcoded in the Add-In (`https://fleetbridge-mygeotab.azurewebsites.net`) and all endpoints are public (no shared Function Key required).
+**Note:** The backend now uses the Azure Container App base URL (`https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io`). Endpoints no longer require a Function Key.
 
 ## Onboarding a New Client
 

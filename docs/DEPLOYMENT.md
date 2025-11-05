@@ -81,7 +81,7 @@ az functionapp keys list \
 
 The function URL will be:
 ```
-https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties
+https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io/api/update-device-properties
 ```
 
 ## Step 2: Configure CORS (Important!)
@@ -100,7 +100,7 @@ az functionapp cors add \
 Edit `index.html` and update these lines (around line 1671):
 
 ```javascript
-const AZURE_FUNCTION_URL = 'https://fleetbridge-mygeotab.azurewebsites.net/api/update-device-properties';
+const FLEETBRIDGE_API_BASE = 'https://exchange-calendar-processor.mangosmoke-ee55f1a9.australiaeast.azurecontainerapps.io';
 const AZURE_FUNCTION_KEY = 'YOUR_FUNCTION_KEY_FROM_STEP_1.6';
 ```
 
